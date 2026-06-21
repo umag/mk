@@ -1,0 +1,14 @@
+node_modules
+dist
+.DS_Store
+*.local
+.impeccable/explorations/
+playwright-report
+test-results
+coverage
+research/.scratch/
+*.db
+*.db-wal
+*.db-shm
+.swamp/
+.impeccable/hook.cache.json

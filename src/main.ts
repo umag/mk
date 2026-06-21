@@ -1,0 +1,246 @@
+import "@fontsource-variable/inter";
+import "@fontsource-variable/fraunces";
+import "@fontsource-variable/jetbrains-mono";
+import "./styles.css";
+
+import { clear, el, svg } from "./dom";
+import { icons } from "./icons";
+import { ctx } from "./context";
+import { Store } from "./store";
+import { seedWorld } from "./seed";
+import { renderWorld, updateChrome, updateFocusRing, skipNextFlip, requestColumnRename } from "./render";
+import { glowPulse, reduceMotion } from "./flip";
+import { initCanvas, applyTransform, screenToWorld, centerOn, nudgeZoom, setZoom } from "./canvas";
+import { initDnd } from "./dnd";
+import { initCapture, startCapture } from "./capture";
+import { initKeyboard } from "./keyboard";
+import { initToast, toast } from "./toast";
+import { openDetail, closeDetail } from "./detail";
+import { openPalette, closePalette } from "./palette";
+import { playSound, toggleMute } from "./sound";
+import { enqueueOp, loadWorkspace, onSynced, onSyncStatus, pushSnapshot, setSyncEnabled } from "./sync/client";
+import type { ID } from "./types";
+
+function buildShell() {
+  const world = el("div", { class: "canvas-world" });
+  const viewport = el(
+    "div",
+    { class: "canvas-viewport", attrs: { role: "application", "aria-label": "Board canvas" } },
+    world,
+    el(
+      "div",
+      { class: "empty-canvas" },
+      el(
+        "div",
+        { class: "inner" },
+        el("h2", { text: "A quiet canvas." }),
+        el("p", { html: "Press <kbd>N</kbd> to capture your first card, or <kbd>⌘K</kbd> to add a board." }),
+      ),
+    ),
+    el("div", { class: "cscroll v" }, el("i", {})),
+    el("div", { class: "cscroll h" }, el("i", {})),
+    el("div", { class: "minimap", attrs: { "aria-hidden": "true" } }, el("div", { class: "minimap-inner" })),
+    buildHud(),
+  );
+
+  const topbar = el(
+    "header",
+    { class: "topbar" },
+    el(
+      "div",
+      { class: "brand" },
+      el("span", { class: "brand-name", html: "may·<em>kaiten</em>" }),
+      el("span", { class: "brand-sub", text: "~/canvas/personal" }),
+      el("span", { class: "sync-dot", attrs: { title: "Offline — in-memory only", "aria-hidden": "true" } }),
+    ),
+    el("div", { class: "topbar-spacer" }),
+    el(
+      "button",
+      { class: "btn btn-primary", on: { click: () => newCardQuick() } },
+      svg(icons.plus),
+      "New card",
+      el("kbd", { text: "N" }),
+    ),
+    el(
+      "button",
+      { class: "btn cmd-trigger", on: { click: () => openPalette() } },
+      svg(icons.search),
+      "Search or run a command",
+      el("span", { class: "gap" }),
+      el("kbd", { text: "⌘K" }),
+    ),
+    el(
+      "div",
+      { class: "zoom" },
+      el("button", { attrs: { "aria-label": "Zoom out" }, text: "−", on: { click: () => nudgeZoom(-1) } }),
+      el("span", { class: "lvl", text: "100%", on: { click: () => setZoom(1) } }),
+      el("button", { attrs: { "aria-label": "Zoom in" }, text: "+", on: { click: () => nudgeZoom(1) } }),
+    ),
+    el("button", { class: "btn icon-btn mute-btn", attrs: { "aria-label": "Toggle sounds", title: "Sounds (M)" }, on: { click: toggleMuteUI } }, svg(icons.sound)),
+    el("div", { class: "avatar", attrs: { "aria-hidden": "true" } }),
+  );
+
+  const app = document.getElementById("app")!;
+  app.append(topbar, viewport);
+  return { viewport, world };
+}
+
+function buildHud() {
+  const key = (k: string, label: string, strong = false) =>
+    el("span", {}, el("kbd", { text: k }), strong ? el("b", { text: label }) : label);
+  return el(
+    "div",
+    { class: "hud", attrs: { "aria-hidden": "true" } },
+    key("N", "new", true),
+    el("span", { class: "sep" }),
+    key("↵", "edit", true),
+    key("A", "advance", true),
+    el("span", {}, el("kbd", { text: "J" }), el("kbd", { text: "K" }), "move"),
+    el("span", {}, el("kbd", { text: "⌫" }), "delete"),
+    el("span", {}, el("kbd", { text: "Space" }), "pan"),
+    key("/", "search"),
+  );
+}
+
+function newCardQuick() {
+  const id = ctx.store.view.focusedCardId;
+  if (id) {
+    const loc = ctx.store.findCard(id);
+    if (loc) return startCapture(loc.column.id);
+  }
+  const first = ctx.store.world.boards[0]?.columns[0];
+  if (first) startCapture(first.id);
+}
+
+function toggleMuteUI() {
+  const muted = toggleMute();
+  const btn = document.querySelector(".mute-btn");
+  if (btn) { clear(btn); btn.appendChild(svg(muted ? icons.mute : icons.sound)); }
+  btn?.classList.toggle("is-muted", muted);
+  toast(muted ? "Sounds <b>off</b>" : "Sounds <b>on</b>");
+}
+
+function deleteCard(id: ID) {
+  const info = ctx.store.deleteCard(id);
+  if (!info) return;
+  playSound("delete");
+  toast(`Deleted <b>${escapeHtml(info.card.title)}</b>`, {
+    undo: () => ctx.store.insertCard(info.columnId, info.card, info.index),
+  });
+}
+
+const escapeHtml = (s: string): string =>
+  s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+
+function setFocus(id: ID | null, opts?: { reveal?: boolean }) {
+  ctx.store.view.focusedCardId = id;
+  updateFocusRing();
+  if (id && opts?.reveal) {
+    const elc = ctx.world.querySelector<HTMLElement>(`[data-card-id="${id}"]`);
+    if (elc) {
+      const board = elc.closest<HTMLElement>(".board");
+      const r = elc.getBoundingClientRect();
+      const vp = ctx.viewport.getBoundingClientRect();
+      // only re-center if the card is out of view
+      if (r.top < vp.top + 70 || r.bottom > vp.bottom - 70 || r.left < vp.left + 20 || r.right > vp.right - 20) {
+        const b = board ? ctx.store.findBoard(board.dataset.boardId!) : null;
+        if (b && board) centerOn(b.x, b.y, board.offsetWidth, board.offsetHeight);
+      }
+    }
+  }
+}
+
+function advance(id: ID, instant = false) {
+  if (!ctx.store.nextColumnOf(id)) return;
+  if (instant || reduceMotion()) skipNextFlip();
+  const res = ctx.store.advanceCard(id);
+  if (!res) return;
+  ctx.store.view.focusedCardId = id;
+  updateFocusRing();
+  playSound("advance");
+  if (!instant) {
+    const elc = ctx.world.querySelector<HTMLElement>(`[data-card-id="${id}"]`);
+    if (elc) glowPulse(elc);
+  }
+}
+
+async function boot() {
+  const store = new Store(seedWorld());
+  const { viewport, world } = buildShell();
+
+  // wire shared context
+  ctx.store = store;
+  ctx.viewport = viewport;
+  ctx.world = world;
+  ctx.minimap = viewport.querySelector(".minimap")!;
+  ctx.scrollV = viewport.querySelector(".cscroll.v")!;
+  ctx.scrollH = viewport.querySelector(".cscroll.h")!;
+  ctx.rerender = renderWorld;
+  ctx.updateChrome = updateChrome;
+  ctx.updateFocusRing = updateFocusRing;
+  ctx.screenToWorld = screenToWorld;
+  ctx.centerOn = centerOn;
+  ctx.setFocus = setFocus;
+  ctx.advance = advance;
+  ctx.deleteCard = deleteCard;
+  ctx.requestColumnRename = requestColumnRename;
+  ctx.startCapture = startCapture;
+  ctx.openDetail = openDetail;
+  ctx.closeDetail = closeDetail;
+  ctx.openPalette = openPalette;
+  ctx.closePalette = closePalette;
+  ctx.toast = toast;
+
+  store.subscribeData(renderWorld);
+  store.setOpSink(enqueueOp);
+  onSyncStatus(updateSyncDot);
+  onSynced(pulseSyncDot);
+
+  initToast();
+
+  // Hydrate from the server BEFORE first paint — no seed→server flash, no capture
+  // race. loadWorkspace() resolves fast on localhost and fails fast when down.
+  const remote = await loadWorkspace();
+  let seedServer = false;
+  if (remote === null) {
+    setSyncEnabled(false); // no server → pure in-memory
+  } else {
+    setSyncEnabled(true);
+    if (remote.boards.length) store.world = remote;
+    else seedServer = true;
+  }
+
+  renderWorld();
+  initCanvas();
+
+  // anchor: pin the first board near the top-left corner of the canvas
+  const b0 = store.world.boards[0];
+  if (b0) { store.view.panX = 24 - b0.x; store.view.panY = 20 - b0.y; }
+  applyTransform();
+
+  initDnd();
+  initCapture();
+  initKeyboard();
+
+  if (seedServer) void pushSnapshot(store.world); // first run: seed the empty server
+}
+
+function updateSyncDot(online: boolean) {
+  const dot = document.querySelector(".sync-dot");
+  if (!dot) return;
+  dot.classList.toggle("online", online);
+  dot.setAttribute("title", online ? "Synced to local server" : "Offline — in-memory only");
+}
+
+/** Quiet confirmation that a batch persisted. */
+function pulseSyncDot() {
+  const dot = document.querySelector<HTMLElement>(".sync-dot");
+  if (!dot || !dot.classList.contains("online")) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  dot.animate(
+    [{ transform: "scale(1)" }, { transform: "scale(1.9)" }, { transform: "scale(1)" }],
+    { duration: 420, easing: "cubic-bezier(0.22,1,0.36,1)" },
+  );
+}
+
+void boot();
