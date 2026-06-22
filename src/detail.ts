@@ -1,4 +1,4 @@
-import { clear, el, linkify, svg } from "./dom";
+import { autoGrow, clear, el, linkify, svg } from "./dom";
 import { icons } from "./icons";
 import { ctx } from "./context";
 import { sinceLabel } from "./store";
@@ -240,6 +240,7 @@ function editTitle(card: Card) {
   const input = el("textarea", { class: "detail-title-input", data: { testid: "card-detail-title-input" }, attrs: { rows: "1", "aria-label": "Edit title" } });
   input.value = card.title;
   node.replaceWith(input);
+  autoGrow(input); // grow with the title instead of scrolling inside the field
   input.focus();
   input.setSelectionRange(input.value.length, input.value.length);
   const commit = () => { const v = input.value.trim(); if (v) ctx.store.updateCard(card.id, { title: v }); rebuild(); };

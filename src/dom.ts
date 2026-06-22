@@ -101,5 +101,12 @@ export function linkify(text: string): Node[] {
   return out;
 }
 
+/** Grow a textarea to fit its content (no inner scroll) as the user types. */
+export function autoGrow(ta: HTMLTextAreaElement): void {
+  const fit = () => { ta.style.height = "auto"; ta.style.height = `${ta.scrollHeight}px`; };
+  ta.addEventListener("input", fit);
+  requestAnimationFrame(fit); // once it's in the DOM and measurable
+}
+
 export const uid = (prefix = "id"): string =>
   `${prefix}-${Math.floor(performance.now() * 1000).toString(36)}-${(globalThis.crypto?.getRandomValues(new Uint32Array(1))[0] ?? 0).toString(36)}`;

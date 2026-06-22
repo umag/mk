@@ -713,7 +713,8 @@ kbd {
 .detail-title-input {
   font-family: var(--serif); font-weight: 560; font-size: 1.62rem; line-height: 1.18; letter-spacing: -0.02em;
   width: 100%; background: var(--col); border: 1px solid var(--accent); border-radius: 8px;
-  padding: 4px 8px; color: var(--ink); box-shadow: 0 0 0 4px var(--accent-ghost); resize: none;
+  padding: 4px 8px; color: var(--ink); box-shadow: 0 0 0 4px var(--accent-ghost);
+  resize: none; overflow: hidden; display: block;
 }
 
 .meta-bar { display: flex; align-items: center; gap: 10px; margin: 18px 0 20px; flex-wrap: wrap; }
