@@ -27,6 +27,8 @@ If micro-kaiten is useful to you, please consider supporting its maintenance via
 - **Capture + advance** as the only first-class acts — keyboard-first throughout
   (`N` new · `A` advance · `J/K` move · `⌘K` palette · `/` search).
 - **Calm, deadline-aware cards** — title, optional date (coloured by deadline), comment count.
+- **Labels** — tag cards with colour-coded labels (the colour is derived from the text), then
+  filter the whole canvas by one or more labels from the top-bar funnel, a card's chip, or `⌘K`.
 - **Paste a link** — the card titles itself from the page; the URL drops into notes. Works for
   articles (`og:title`/`<title>`) and **YouTube** (via oEmbed). Existing URL-titled cards backfill.
 - **Bespoke date picker**, inline column rename, card-detail sheet with notes + comments.

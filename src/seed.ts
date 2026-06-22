@@ -15,13 +15,14 @@ function isoIn(offset: number): string {
 let n = 0;
 function card(
   title: string,
-  opts: { dueInDays?: number; comments?: string[]; notes?: string; inCol?: number } = {},
+  opts: { dueInDays?: number; comments?: string[]; notes?: string; inCol?: number; labels?: string[] } = {},
 ): Card {
   return {
     id: uid("card"),
     title,
     notes: opts.notes ?? "",
     due: opts.dueInDays == null ? null : isoIn(opts.dueInDays),
+    labels: opts.labels ?? [],
     comments: (opts.comments ?? []).map((text, i) => ({
       id: uid("cm"),
       author: "You",
@@ -48,6 +49,7 @@ export function seedWorld(): WorldState {
             card("Reply to bank re: mortgage rate lock", {
               dueInDays: -2,
               inCol: 3,
+              labels: ["mortgage", "urgent"],
               notes:
                 "Rate lock expires **Friday**. Need written confirmation of the new APR before signing anything.\n\n- Confirm the locked rate vs. today's offer\n- Ask whether the lock survives a valuation delay\n- Get it in email, not over the phone",
               comments: [
@@ -56,11 +58,12 @@ export function seedWorld(): WorldState {
               ],
             }),
             card("26 Claude tabs — archive the keepers, close the rest", {
+              labels: ["research"],
               comments: ["The local-first one and the OKLCH thread are worth saving."],
             }),
-            card("Call plumber about the kitchen leak", { dueInDays: 0 }),
-            card("Read: “Local-first software” essay"),
-            card("Renew car insurance before it lapses", { dueInDays: 8 }),
+            card("Call plumber about the kitchen leak", { dueInDays: 0, labels: ["home", "urgent"] }),
+            card("Read: “Local-first software” essay", { labels: ["research"] }),
+            card("Renew car insurance before it lapses", { dueInDays: 8, labels: ["home"] }),
           ],
         },
         { id: uid("col"), name: "Triaged", wip: null, cards: [] },
@@ -79,11 +82,12 @@ export function seedWorld(): WorldState {
           wip: null,
           cards: [
             card("SQLite schema for boards & cards", {
+              labels: ["dev", "backend"],
               comments: ["boards, columns, cards, comments. Keep card order as a float index."],
               notes: "Single-writer, WAL mode. Order via fractional indexing so reorders are O(1).",
               inCol: 2,
             }),
-            card("Drag a card between boards"),
+            card("Drag a card between boards", { labels: ["dev"] }),
           ],
         },
         {
@@ -93,6 +97,7 @@ export function seedWorld(): WorldState {
           cards: [
             card("Canvas pan & zoom — scroll grows the canvas, not the board", {
               dueInDays: 1,
+              labels: ["dev", "frontend"],
               comments: ["Inertia on trackpad. Space-drag to pan with the mouse."],
               inCol: 1,
             }),
@@ -122,7 +127,7 @@ export function seedWorld(): WorldState {
           id: uid("col"),
           name: "To do",
           wip: null,
-          cards: [card("Upload last 3 payslips to broker", { dueInDays: -1 })],
+          cards: [card("Upload last 3 payslips to broker", { dueInDays: -1, labels: ["mortgage", "urgent"] })],
         },
         {
           id: uid("col"),
@@ -131,6 +136,7 @@ export function seedWorld(): WorldState {
           cards: [
             card("Chase valuation report", {
               dueInDays: 5,
+              labels: ["mortgage"],
               comments: ["Surveyor booked for the 28th.", "Lender said 3 working days after that.", "Pushed them again.", "Still nothing."],
             }),
           ],
@@ -148,7 +154,7 @@ export function seedWorld(): WorldState {
           id: uid("col"),
           name: "Today",
           wip: null,
-          cards: [card("Groceries + pharmacy run"), card("Gym — easy 5k")],
+          cards: [card("Groceries + pharmacy run", { labels: ["home"] }), card("Gym — easy 5k")],
         },
         { id: uid("col"), name: "This week", wip: null, cards: [card("Book dentist check-up", { dueInDays: 5 })] },
         { id: uid("col"), name: "Someday", wip: null, cards: [card("Plan the Italy trip 🇮🇹")] },

@@ -5,7 +5,7 @@ import type { Card, WorldState } from "../src/types";
 
 const DAY = 86_400_000;
 const card = (id: string, enteredColumnAt: number): Card => ({
-  id, title: id, notes: "", due: null, comments: [], enteredColumnAt,
+  id, title: id, notes: "", due: null, labels: [], comments: [], enteredColumnAt,
 });
 
 function world(now: number): WorldState {

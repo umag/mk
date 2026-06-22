@@ -8,7 +8,7 @@ test.describe("Board canvas flows", () => {
     await expect(page.locator(".sync-dot.online")).toBeVisible(); // let the reconcile settle
     const title = `Focus ${Date.now()}`;
     await page.keyboard.press("n");
-    await page.locator(".capture-row input").fill(title);
+    await page.getByTestId("capture-input").fill(title);
     await page.keyboard.press("Enter");
     // Then the new card carries the focus treatment
     await expect(page.locator(".card.focus", { hasText: title })).toBeVisible();
@@ -19,7 +19,7 @@ test.describe("Board canvas flows", () => {
     await expect(page.locator(".sync-dot.online")).toBeVisible();
     const title = `Delete ${Date.now()}`;
     await page.keyboard.press("n");
-    await page.locator(".capture-row input").fill(title);
+    await page.getByTestId("capture-input").fill(title);
     await page.keyboard.press("Enter");
     await page.keyboard.press("Escape");
 
@@ -86,8 +86,11 @@ test.describe("Board canvas flows", () => {
     await expect(page.locator(".sync-dot.online")).toBeVisible();
     const card = page.locator(".card", { hasText: "Drag a card between boards" });
     await card.click();
-    await page.locator(".due-field input[type='date']").fill("2026-07-15");
-    await page.keyboard.press("Escape");
+    // Open the bespoke date picker from the detail sheet and pick a day
+    await page.getByTestId("card-detail-due").click();
+    await expect(page.getByTestId("calendar")).toBeVisible();
+    await page.getByTestId("calendar-today").click(); // deterministic pick = today
+    await page.keyboard.press("Escape"); // close detail, keep focus
     await expect(card.locator(".due")).toBeVisible();
     await page.waitForTimeout(700);
     await page.reload();
@@ -110,6 +113,40 @@ test.describe("Board canvas flows", () => {
     await page.waitForTimeout(700);
     await page.reload();
     await expect(page.locator(".board", { hasText: "micro-kaiten · Dev" }).locator(".col-name", { hasText: "Waiting" })).toBeVisible();
+  });
+
+  test("a label added in the detail sheet shows on the card and persists", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    const card = page.locator(".card", { hasText: "Drag a card between boards" });
+    await card.click();
+    await page.getByTestId("card-detail-label-input").fill("spike");
+    await page.getByTestId("card-detail-label-input").press("Enter");
+    // chip appears in the sheet…
+    await expect(page.getByTestId("card-detail-labels").getByText("spike")).toBeVisible();
+    await page.keyboard.press("Escape"); // close detail
+    // …and on the card facade, and survives a reload (persisted)
+    await expect(card.getByTestId("card-labels").getByText("spike")).toBeVisible();
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(page.locator(".card", { hasText: "Drag a card between boards" }).getByText("spike")).toBeVisible();
+  });
+
+  test("filtering by a label narrows the canvas to matching cards", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    // 'Groceries' is labelled home; 'Drag a card between boards' is not.
+    await page.getByTestId("filter-button").click();
+    await expect(page.getByTestId("filter-popover")).toBeVisible();
+    await page.getByTestId("filter-option").filter({ hasText: "home" }).click();
+
+    await expect(page.locator(".card", { hasText: "Groceries + pharmacy run" })).toBeVisible();
+    await expect(page.locator(".card", { hasText: "Drag a card between boards" })).toHaveCount(0);
+    await expect(page.getByTestId("filter-bar")).toBeVisible();
+
+    await page.keyboard.press("Escape"); // close popover
+    await page.getByTestId("filter-clear").click();
+    await expect(page.locator(".card", { hasText: "Drag a card between boards" })).toBeVisible();
   });
 
 });

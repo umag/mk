@@ -19,7 +19,7 @@ test.describe("Persistence — optimistic local + sync", () => {
 
     // When I capture a new card (N → type → Enter)
     await page.keyboard.press("n");
-    await page.locator(".capture-row input").fill(title);
+    await page.getByTestId("capture-input").fill(title);
     await page.keyboard.press("Enter");
     await expect(page.locator(".card", { hasText: title })).toBeVisible();
 
@@ -38,7 +38,7 @@ test.describe("Persistence — optimistic local + sync", () => {
 
     // Given a fresh card in the first column
     await page.keyboard.press("n");
-    await page.locator(".capture-row input").fill(title);
+    await page.getByTestId("capture-input").fill(title);
     await page.keyboard.press("Enter");
     await page.keyboard.press("Escape");
     const card = page.locator(".card", { hasText: title });

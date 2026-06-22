@@ -26,6 +26,8 @@ export const icons = {
   column: wrap(`<rect x="4" y="4" width="6" height="16" rx="1.5"/><path d="M16 4v16"/>`, 1.9),
   sound: wrap(`<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8 8 0 0 1 0 12"/>`, 1.9),
   mute: wrap(`<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M22 9l-6 6M16 9l6 6"/>`, 1.9),
+  tag: wrap(`<path d="M4 4h7.6a2 2 0 0 1 1.4.6l6.4 6.4a2 2 0 0 1 0 2.8l-6.6 6.6a2 2 0 0 1-2.8 0L3.4 13.6A2 2 0 0 1 3 12.2V5a1 1 0 0 1 1-1z"/><circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none"/>`, 1.8),
+  filter: wrap(`<path d="M3 5h18l-7 8.5V20l-4-2.2v-4.3z"/>`, 1.9),
 } as const;
 
 export type IconName = keyof typeof icons;

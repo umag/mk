@@ -5,8 +5,17 @@ import { ctx } from "./context";
 import { boardMenu, cardMenu, columnMenu } from "./menu";
 import { dueLabel, dueStateOf } from "./core/due";
 import { isArchiveBoard, isDoneColumn } from "./core/done";
+import { cardMatchesFilter } from "./core/labels";
+import { labelChip, toggleLabelFilter, updateFilterBar } from "./filter";
 import { anchorIndex, BOARD_GAP, originOf, relaxOverlaps } from "./board-layout";
 import type { Board, Card, Column, DueState } from "./types";
+
+/** Cards in a column that pass the active label filter (filter never applies in the Archive). */
+function visibleCards(board: Board, column: Column): Card[] {
+  const filter = ctx.store.view.labelFilter;
+  if (!filter.length || isArchiveBoard(board)) return column.cards;
+  return column.cards.filter((c) => cardMatchesFilter(c, filter));
+}
 
 /** Hooks run at the end of every world render (capture re-injects its active input here). */
 export const afterRender: Array<() => void> = [];
@@ -62,6 +71,7 @@ export function renderWorld(): void {
 
   ctx.updateFocusRing();
   ctx.updateChrome();
+  updateFilterBar();
   for (const fn of afterRender) fn();
 
   if (pendingRenameColumn) {
@@ -95,7 +105,7 @@ function scheduleRelax() {
 }
 
 function buildBoard(board: Board): HTMLElement {
-  const total = board.columns.reduce((n, c) => n + c.cards.length, 0);
+  const total = board.columns.reduce((n, c) => n + visibleCards(board, c).length, 0);
   const flow = board.columns.map((c) => c.name.toLowerCase()).join(" → ");
   const archive = isArchiveBoard(board);
   // Anchor is computed over the real boards only; the Archive board is never one.
@@ -153,6 +163,8 @@ function buildColumn(board: Board, column: Column, index: number): HTMLElement {
   const archive = isArchiveBoard(board);
   const done = isDoneColumn(board, index);
   const over = column.wip != null && column.cards.length > column.wip;
+  const filtering = ctx.store.view.labelFilter.length > 0 && !archive;
+  const cards = visibleCards(board, column);
 
   const head = el(
     "div",
@@ -164,7 +176,7 @@ function buildColumn(board: Board, column: Column, index: number): HTMLElement {
       text: column.name,
       on: archive ? {} : { click: () => startRename(column.id) },
     }),
-    el("span", { class: "col-count", data: { testid: "column-count" }, text: String(column.cards.length) }),
+    el("span", { class: "col-count", data: { testid: "column-count" }, text: String(cards.length) }),
     column.wip != null
       ? el("span", { class: `col-wip${over ? " over" : ""}`, data: { testid: "column-wip" }, text: `WIP ${column.wip}` })
       : null,
@@ -180,10 +192,12 @@ function buildColumn(board: Board, column: Column, index: number): HTMLElement {
   );
 
   const cardWrap = el("div", { class: "col-cards", data: { colCards: column.id } });
-  if (column.cards.length === 0) {
+  if (cards.length === 0) {
     cardWrap.appendChild(
       archive
         ? el("div", { class: "col-archive-empty", text: "Nothing archived yet." })
+        : filtering
+        ? el("div", { class: "col-filter-empty", data: { testid: "column-filter-empty" }, text: "No matching cards" })
         : el("button", {
           class: "col-empty",
           data: { colEmpty: column.id, testid: "column-add-card" },
@@ -192,9 +206,10 @@ function buildColumn(board: Board, column: Column, index: number): HTMLElement {
         }),
     );
   } else {
-    column.cards.forEach((card) => cardWrap.appendChild(buildCard(card)));
+    cards.forEach((card) => cardWrap.appendChild(buildCard(card)));
     // Kaiten-style: hover the column to reveal a quick-add at the bottom.
-    if (!archive) {
+    // (Suppressed while filtering — the column is showing a filtered subset.)
+    if (!archive && !filtering) {
       cardWrap.appendChild(
         el("button", {
           class: "col-add",
@@ -218,6 +233,18 @@ function buildCard(card: Card): HTMLElement {
   const children: Array<Node | null> = [
     el("div", { class: "card-title", data: { testid: "card-title" } }, ...linkify(card.title)),
   ];
+
+  if (card.labels.length) {
+    const filter = ctx.store.view.labelFilter;
+    const row = el("div", { class: "card-labels", data: { testid: "card-labels" } });
+    for (const name of card.labels) {
+      row.appendChild(labelChip(name, {
+        active: filter.some((f) => f.toLowerCase() === name.toLowerCase()),
+        onClick: () => toggleLabelFilter(name),
+      }));
+    }
+    children.push(row);
+  }
 
   if (card.due || card.comments.length) {
     const foot = el("div", { class: "card-foot" });

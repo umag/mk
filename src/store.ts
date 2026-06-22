@@ -1,6 +1,7 @@
 import type { Board, Card, Column, ID, ViewState, WorldState } from "./types";
 import type { Op } from "./core/ops";
 import { applyOp, type CardLoc, findBoard, findCard, findColumn, nextColumnOf } from "./core/state";
+import { addLabelTo, removeLabelFrom } from "./core/labels";
 import { ARCHIVE_BOARD_ID } from "./core/done";
 import { archiveBoardObject, archiveSweepOps } from "./core/archive";
 import { uid } from "./dom";
@@ -16,6 +17,7 @@ export class Store {
   view: ViewState = {
     panX: 0, panY: 0, zoom: 1,
     focusedCardId: null, detailCardId: null, paletteOpen: false, archiveOpen: false,
+    labelFilter: [],
   };
 
   private dataSubs = new Set<() => void>();
@@ -60,7 +62,7 @@ export class Store {
     const col = this.findColumn(columnId);
     if (!col || !title.trim()) return null;
     const cardObj: Card = {
-      id: uid("card"), title: title.trim(), notes: "", due: null,
+      id: uid("card"), title: title.trim(), notes: "", due: null, labels: [],
       comments: [], enteredColumnAt: Date.now(),
     };
     this.commit({ t: "addCard", columnId, index: atTop ? 0 : col.column.cards.length, card: cardObj });
@@ -74,6 +76,20 @@ export class Store {
   updateCard(id: ID, patch: Partial<Card>) {
     if (!this.findCard(id)) return;
     this.commit({ t: "updateCard", id, patch });
+  }
+
+  /** Add a label to a card (normalized + deduped + capped). No-op if unchanged. */
+  addLabel(id: ID, raw: string) {
+    const loc = this.findCard(id);
+    if (!loc) return;
+    const labels = addLabelTo(loc.card.labels, raw);
+    if (labels.length !== loc.card.labels.length) this.updateCard(id, { labels });
+  }
+
+  removeLabel(id: ID, name: string) {
+    const loc = this.findCard(id);
+    if (!loc) return;
+    this.updateCard(id, { labels: removeLabelFrom(loc.card.labels, name) });
   }
 
   deleteCard(id: ID): { columnId: ID; index: number; card: Card } | null {

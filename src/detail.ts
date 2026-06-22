@@ -4,13 +4,18 @@ import { ctx } from "./context";
 import { sinceLabel } from "./store";
 import { dueLabel, dueStateOf } from "./core/due";
 import { closeCalendar, isCalendarOpen, openCalendar } from "./calendar";
+import { labelChip } from "./filter";
+import { collectLabels } from "./core/labels";
 import { playSound } from "./sound";
 import type { Card } from "./types";
+
+const LABEL_DATALIST_ID = "card-detail-label-suggestions";
 
 let backdrop: HTMLElement | null = null;
 let sheet: HTMLElement | null = null;
 let currentId: string | null = null;
 let editingNotes = false;
+let refocusLabelAdd = false;
 
 export function openDetail(cardId: string) {
   if (!ctx.store.findCard(cardId)) return;
@@ -172,6 +177,49 @@ function rebuild() {
     meta.appendChild(el("span", { class: "advance-btn is-last" }, svg(icons.check), "Last column"));
   }
   body.appendChild(meta);
+
+  // labels — chips (click ✕ to remove) + an add input with suggestions
+  const labelsRow = el("div", { class: "detail-labels", data: { testid: "card-detail-labels" } });
+  for (const name of card.labels) {
+    labelsRow.appendChild(labelChip(name, { onRemove: () => { ctx.store.removeLabel(card.id, name); rebuild(); } }));
+  }
+  const addInput = el("input", {
+    class: "label-add",
+    data: { testid: "card-detail-label-input" },
+    attrs: {
+      type: "text",
+      placeholder: card.labels.length ? "+ label" : "+ Add a label",
+      "aria-label": "Add a label",
+      list: LABEL_DATALIST_ID,
+      autocomplete: "off",
+      maxlength: "24",
+    },
+  });
+  const commitLabel = () => {
+    const v = addInput.value.trim();
+    addInput.value = "";
+    if (!v) return;
+    const before = card.labels.length;
+    ctx.store.addLabel(card.id, v);
+    if (card.labels.length !== before) { refocusLabelAdd = true; rebuild(); } // keep adding
+  };
+  addInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); commitLabel(); }
+    else if (e.key === "Escape") { e.stopPropagation(); addInput.value = ""; addInput.blur(); }
+  });
+  addInput.addEventListener("blur", commitLabel);
+  labelsRow.appendChild(addInput);
+
+  // suggestions: labels already in use that this card doesn't have yet
+  const dl = el("datalist", { attrs: { id: LABEL_DATALIST_ID } });
+  for (const { name } of collectLabels(ctx.store.world)) {
+    if (!card.labels.some((l) => l.toLowerCase() === name.toLowerCase())) {
+      dl.appendChild(el("option", { attrs: { value: name } }));
+    }
+  }
+  labelsRow.appendChild(dl);
+  body.appendChild(labelsRow);
+  if (refocusLabelAdd) { refocusLabelAdd = false; setTimeout(() => addInput.focus()); }
 
   // notes
   const notes = el("div", { class: "section" });

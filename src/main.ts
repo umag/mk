@@ -17,6 +17,7 @@ import { initKeyboard } from "./keyboard";
 import { initToast, toast } from "./toast";
 import { openDetail, closeDetail } from "./detail";
 import { closePalette, exitArchive, openPalette } from "./palette";
+import { openFilterPopover } from "./filter";
 import { playSound, toggleMute } from "./sound";
 import { enqueueOp, loadWorkspace, onSynced, onSyncStatus, pushSnapshot, setSyncEnabled, unfurl } from "./sync/client";
 import type { ID } from "./types";
@@ -76,6 +77,17 @@ function buildShell() {
       el("kbd", { text: "⌘K" }),
     ),
     el(
+      "button",
+      {
+        class: "btn icon-btn filter-btn",
+        data: { testid: "filter-button" },
+        attrs: { "aria-label": "Filter by label", title: "Filter by label" },
+        on: { click: (e: MouseEvent) => openFilterPopover(e.currentTarget as HTMLElement) },
+      },
+      svg(icons.filter),
+      el("span", { class: "filter-count" }),
+    ),
+    el(
       "div",
       { class: "zoom" },
       el("button", { data: { testid: "zoom-out" }, attrs: { "aria-label": "Zoom out" }, text: "−", on: { click: () => nudgeZoom(-1) } }),
@@ -86,8 +98,15 @@ function buildShell() {
     el("div", { class: "avatar", attrs: { "aria-hidden": "true" } }),
   );
 
+  const filterBar = el("div", {
+    class: "filter-bar",
+    data: { testid: "filter-bar" },
+    attrs: { role: "status", "aria-live": "polite" },
+    style: { display: "none" } as Record<string, string>,
+  });
+
   const app = document.getElementById("app")!;
-  app.append(topbar, viewport);
+  app.append(topbar, filterBar, viewport);
   return { viewport, world };
 }
 

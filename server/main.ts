@@ -3,6 +3,7 @@ import type { Board, Card, Column, WorldState } from "../src/types.ts";
 import { applyOps, findBoard, findCard, findColumn, nextColumnOf } from "../src/core/state.ts";
 import { ARCHIVE_BOARD_ID } from "../src/core/done.ts";
 import { dueStateOf } from "../src/core/due.ts";
+import { sanitizeLabels } from "../src/core/labels.ts";
 import { archiveSweepOps } from "../src/core/archive.ts";
 import { loadAll, openDb, saveAll } from "./db.ts";
 
@@ -236,15 +237,20 @@ Deno.serve({ port: PORT }, async (req) => {
           const boardId = searchParams.get("boardId");
           const columnId = searchParams.get("columnId");
           const due = searchParams.get("due");
+          const label = searchParams.get("label");
           const q = searchParams.get("q");
           if (boardId) cards = cards.filter((c) => c.boardId === boardId);
           if (columnId) cards = cards.filter((c) => c.columnId === columnId);
           if (due) cards = cards.filter((c) => dueStateOf(c.due) === due);
-          if (q) { const ql = q.toLowerCase(); cards = cards.filter((c) => c.title.toLowerCase().includes(ql)); }
+          if (label) { const ll = label.toLowerCase(); cards = cards.filter((c) => c.labels.some((l) => l.toLowerCase() === ll)); }
+          if (q) {
+            const ql = q.toLowerCase();
+            cards = cards.filter((c) => c.title.toLowerCase().includes(ql) || c.labels.some((l) => l.toLowerCase().includes(ql)));
+          }
           return json(cards);
         }
         if (method === "POST") {
-          const body = (await req.json()) as { columnId?: string; title?: string; notes?: string; due?: string | null; index?: number };
+          const body = (await req.json()) as { columnId?: string; title?: string; notes?: string; due?: string | null; labels?: string[]; index?: number };
           if (!body.columnId || !findColumn(state, body.columnId)) return json({ error: "unknown columnId" }, 400);
           if (!body.title || !body.title.trim()) return json({ error: "title required" }, 400);
           const card: Card = {
@@ -252,6 +258,7 @@ Deno.serve({ port: PORT }, async (req) => {
             title: body.title.trim(),
             notes: body.notes ?? "",
             due: body.due ?? null,
+            labels: Array.isArray(body.labels) ? sanitizeLabels(body.labels) : [],
             comments: [],
             enteredColumnAt: Date.now(),
           };
@@ -266,11 +273,12 @@ Deno.serve({ port: PORT }, async (req) => {
         if (method === "GET") return cardView(id) ? json(cardView(id)) : json({ error: "not found" }, 404);
         if (method === "PATCH") {
           if (!findCard(state, id)) return json({ error: "not found" }, 404);
-          const patch = (await req.json()) as Partial<Pick<Card, "title" | "notes" | "due">>;
+          const patch = (await req.json()) as Partial<Pick<Card, "title" | "notes" | "due" | "labels">>;
           const clean: Partial<Card> = {};
           if (typeof patch.title === "string") clean.title = patch.title;
           if (typeof patch.notes === "string") clean.notes = patch.notes;
           if (patch.due === null || typeof patch.due === "string") clean.due = patch.due;
+          if (Array.isArray(patch.labels)) clean.labels = sanitizeLabels(patch.labels);
           commit([{ t: "updateCard", id, patch: clean }]);
           return json(cardView(id));
         }

@@ -853,3 +853,96 @@ kbd {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Labels & label filtering ──────────────────────────────────────────────
+   A label's colour is derived from its text (core/labels.labelHue → --lh hue),
+   so the same tag always reads the same colour with no registry to maintain. */
+.label-chip {
+  --lc: oklch(0.7 0.11 var(--lh));            /* the tag's accent colour */
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 8px; border-radius: 999px;
+  font: 0.72rem var(--sans); font-weight: 560; letter-spacing: 0.01em;
+  color: oklch(0.9 0.035 var(--lh));
+  background: color-mix(in oklch, var(--lc) 16%, var(--card));
+  border: 1px solid color-mix(in oklch, var(--lc) 32%, transparent);
+  cursor: pointer; white-space: nowrap; line-height: 1.5;
+  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
+}
+.label-chip:hover { background: color-mix(in oklch, var(--lc) 26%, var(--card)); border-color: color-mix(in oklch, var(--lc) 50%, transparent); }
+.label-chip:active { transform: translateY(0.5px); }
+.label-chip .label-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lc); flex: none; }
+.label-chip .label-text { overflow: hidden; text-overflow: ellipsis; max-width: 16ch; }
+.label-chip.is-active {
+  background: color-mix(in oklch, var(--lc) 30%, var(--card));
+  border-color: var(--lc);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--lc) 55%, transparent);
+}
+.label-chip .label-x {
+  display: inline-grid; place-items: center; width: 15px; height: 15px;
+  margin: 0 -3px 0 1px; border-radius: 50%; color: inherit; opacity: 0.6;
+}
+.label-chip .label-x:hover { opacity: 1; background: oklch(1 0 0 / 0.12); }
+.label-chip .label-x svg { width: 10px; height: 10px; }
+
+/* chips on a card facade */
+.card-labels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+/* labels editor in the detail sheet */
+.detail-labels { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 4px 0 2px; }
+.label-add {
+  font: 0.78rem var(--sans); color: var(--ink-2);
+  background: transparent; border: 1px dashed var(--line); border-radius: 999px;
+  padding: 3px 11px; min-width: 84px; outline: none;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.label-add::placeholder { color: var(--ink-4); }
+.label-add:focus { border-style: solid; border-color: var(--accent); background: var(--accent-ghost-2); color: var(--ink); }
+
+/* funnel button badge in the top bar */
+.filter-btn { position: relative; }
+.filter-btn .filter-count {
+  position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px;
+  display: none; place-items: center; padding: 0 4px;
+  font: 600 0.66rem var(--mono); color: var(--accent-ink);
+  background: var(--accent); border-radius: 999px; box-shadow: 0 0 0 2px var(--bg);
+}
+.filter-btn .filter-count.on { display: grid; }
+.filter-btn:has(.filter-count.on) { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 40%, var(--line)); }
+
+/* active-filter bar under the top bar */
+.filter-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 8px 18px; background: var(--bg-2); border-bottom: 1px solid var(--line-soft);
+}
+.filter-bar .filter-bar-icon { width: 15px; height: 15px; color: var(--accent); }
+.filter-bar .filter-bar-label { font: 0.78rem var(--sans); color: var(--ink-3); margin-right: 2px; }
+.filter-clear {
+  margin-left: 4px; font: 0.74rem var(--sans); font-weight: 560; color: var(--ink-3);
+  padding: 3px 9px; border-radius: 8px; border: 1px solid var(--line);
+}
+.filter-clear:hover { color: var(--ink); background: var(--panel-hi); border-color: var(--line); }
+
+.col-filter-empty { color: var(--ink-4); font: 0.8rem var(--sans); font-style: italic; padding: 8px 4px; }
+
+/* funnel popover */
+.filter-pop {
+  position: fixed; z-index: var(--z-scroll); min-width: 232px; max-width: 320px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+  box-shadow: var(--sh-pop); padding: 8px; max-height: 60vh; overflow: auto;
+}
+.filter-pop-head { font: 0.7rem var(--sans); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-4); padding: 4px 6px 8px; }
+.filter-pop-empty { color: var(--ink-3); font: 0.84rem var(--sans); padding: 6px; }
+.filter-pop-list { display: flex; flex-direction: column; gap: 2px; }
+.filter-pop-item { display: flex; align-items: center; gap: 9px; padding: 5px 6px; border-radius: 8px; text-align: left; }
+.filter-pop-item:hover { background: var(--panel-hi); }
+.filter-pop-item.active { background: var(--accent-ghost-2); }
+.filter-pop-item .filter-check { width: 16px; height: 16px; display: grid; place-items: center; color: var(--accent); flex: none; }
+.filter-pop-item .filter-check svg { width: 14px; height: 14px; }
+.filter-pop-item .label-chip { pointer-events: none; }    /* the whole row is the hit target */
+.filter-pop-count { margin-left: auto; font: 0.72rem var(--mono); color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.filter-pop-clear {
+  width: 100%; margin-top: 6px; padding: 7px; border-radius: 8px;
+  font: 0.78rem var(--sans); font-weight: 560; color: var(--ink-2);
+  border: 1px solid var(--line); background: var(--bg-2);
+}
+.filter-pop-clear:hover { color: var(--ink); background: var(--panel-hi); }

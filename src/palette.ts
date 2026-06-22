@@ -3,6 +3,8 @@ import { icons, type IconName } from "./icons";
 import { ctx } from "./context";
 import { computeBoardSpot } from "./render";
 import { isArchiveBoard } from "./core/done";
+import { collectLabels } from "./core/labels";
+import { clearLabelFilter, setLabelFilter } from "./filter";
 
 /** Switch to the hidden Archive board and frame it. */
 export function enterArchive() {
@@ -41,6 +43,8 @@ interface Cmd {
   label: string;
   sub?: string;
   meta?: string;
+  /** Extra text folded into search matching but not shown (e.g. a card's labels). */
+  keywords?: string;
   run: () => void;
 }
 
@@ -122,6 +126,23 @@ function buildAll(): Cmd[] {
       run: () => { closePalette(); revealBoard(b.id); },
     });
   }
+  // Filter by label — pick a label to narrow the canvas to its cards.
+  if (!s.view.archiveOpen) {
+    for (const { name, count } of collectLabels(s.world)) {
+      cmds.push({
+        group: "Filter by label", icon: "tag", label: `#${name}`, sub: `${count} card${count === 1 ? "" : "s"}`,
+        keywords: name,
+        run: () => { closePalette(); setLabelFilter([name]); },
+      });
+    }
+    if (s.view.labelFilter.length) {
+      cmds.push({
+        group: "Filter by label", icon: "close", label: "Clear label filter",
+        sub: `Active: ${s.view.labelFilter.join(", ")}`,
+        run: () => { closePalette(); clearLabelFilter(); },
+      });
+    }
+  }
   for (const b of s.world.boards) {
     if (isArchiveBoard(b)) continue;
     for (const col of b.columns) {
@@ -129,6 +150,7 @@ function buildAll(): Cmd[] {
         cmds.push({
           group: "Cards", icon: "advance", label: card.title, sub: `${b.title} · ${col.name}`,
           meta: card.due ?? undefined,
+          keywords: card.labels.join(" "),
           run: () => { closePalette(); revealBoard(b.id); ctx.setFocus(card.id, { reveal: true }); ctx.openDetail(card.id); },
         });
       }
@@ -145,7 +167,7 @@ function refresh() {
     const cards = all.filter((c) => c.group === "Cards").slice(0, 5);
     filtered = [...all.filter((c) => c.group !== "Cards"), ...cards];
   } else {
-    filtered = all.filter((c) => (c.label + " " + (c.sub ?? "")).toLowerCase().includes(q));
+    filtered = all.filter((c) => (c.label + " " + (c.sub ?? "") + " " + (c.keywords ?? "")).toLowerCase().includes(q));
   }
   active = 0;
   paint();

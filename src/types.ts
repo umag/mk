@@ -17,6 +17,8 @@ export interface Card {
   notes: string;
   /** ISO "YYYY-MM-DD", or null when unscheduled. Urgency/label are derived (see core/due.ts). */
   due: string | null;
+  /** Free-form colour-coded tags. Colour is derived from the text (see core/labels.ts). */
+  labels: string[];
   comments: Comment[];
   /** When the card entered its current column — powers the "time in column" metric. */
   enteredColumnAt: number;
@@ -53,4 +55,6 @@ export interface ViewState {
   paletteOpen: boolean;
   /** Viewing the hidden Archive board instead of the normal canvas. */
   archiveOpen: boolean;
+  /** Active label filter (OR). Empty = no filter. Transient; never persisted. */
+  labelFilter: string[];
 }
