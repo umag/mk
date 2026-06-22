@@ -3,7 +3,7 @@
 > Every surface of `aopab.kaiten.ru` (space 36022), explored with Playwright on
 > 2026-06-22. Russian labels quoted verbatim with English glosses; real `data-testid`s
 > noted as `tid:`. Screenshots live in `research/.scratch/ui-*.png` (gitignored).
-> This is the map of what Kaiten *has*; may-kaiten implements a small, opinionated subset.
+> This is the map of what Kaiten *has*; micro-kaiten implements a small, opinionated subset.
 
 ## 1. Top bar (global)
 Logo (layered diamond mark + "Kaiten" wordmark) · global **search** "Найти" · **Улучшить
@@ -101,9 +101,9 @@ Letter+color markers, change via `tid: card-type-change-button` / `card-type-chi
 
 ---
 
-### may-kaiten read
+### micro-kaiten read
 Kaiten is a *broad* PM suite — 5 view modes, 13 reports, 22 filters, 20 admin screens, a
-12-item card menu. may-kaiten is the **opposite**: one spatial board view, no reports, no
+12-item card menu. micro-kaiten is the **opposite**: one spatial board view, no reports, no
 admin, capture + advance as the only first-class acts. The lesson isn't the feature list —
 it's that even this dense product keeps the **card facade** clean and the **advance**
 action front-and-centre; that's the part worth matching.

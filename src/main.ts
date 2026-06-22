@@ -49,7 +49,7 @@ function buildShell() {
     el(
       "div",
       { class: "brand" },
-      el("span", { class: "brand-name", html: "may·<em>kaiten</em>" }),
+      el("span", { class: "brand-name", html: "micro·<em>kaiten</em>" }),
       el("span", { class: "brand-sub", text: "~/canvas/personal" }),
       el("span", { class: "sync-dot", attrs: { title: "Offline — in-memory only", "aria-hidden": "true" } }),
       el("button", {

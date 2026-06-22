@@ -2,8 +2,8 @@
 
 > Extracted by driving `aopab.kaiten.ru` with Playwright on 2026-06-22 and reading the
 > live DOM, computed styles, CSS custom properties, loaded fonts and asset manifest.
-> This is *reference* for building may-kaiten — Kaiten's stack and tokens, with the
-> deliberate ways may-kaiten diverges noted. All values are real, read off the running app.
+> This is *reference* for building micro-kaiten — Kaiten's stack and tokens, with the
+> deliberate ways micro-kaiten diverges noted. All values are real, read off the running app.
 
 ## Tech stack (fingerprinted)
 
@@ -17,9 +17,9 @@
 | 3rd-party | Dropbox dropins, Google APIs, CloudPayments | `<script src>` list |
 | App version | Kaiten **58.39.0** | login footer |
 
-> **may-kaiten contrast:** Vite + TS, no component library, hand-rolled CSS with **OKLCH
+> **micro-kaiten contrast:** Vite + TS, no component library, hand-rolled CSS with **OKLCH
 > custom properties** (not a JS theme), Fraunces/Inter/JetBrains Mono (not Roboto). Kaiten
-> is a generic MUI dark theme; may-kaiten's whole point is bespoke editorial craft.
+> is a generic MUI dark theme; micro-kaiten's whole point is bespoke editorial craft.
 
 ## Design tokens (computed, real values)
 
@@ -65,8 +65,8 @@ Note there are **only ~15 CSS vars** — MUI carries the rest of the theme in JS
 - Column header: weight **500**, letter-spacing `0.1px`.
 - Sidebar width **300px** (`--app-tree-width`).
 
-> **may-kaiten contrast:** 16px base (not 14px), warm-neutral OKLCH surfaces (hue 80) not
-> pure-grey, a single amber accent (not purple), and **no chip-color palette** — may-kaiten
+> **micro-kaiten contrast:** 16px base (not 14px), warm-neutral OKLCH surfaces (hue 80) not
+> pure-grey, a single amber accent (not purple), and **no chip-color palette** — micro-kaiten
 > rejects the `--pm-color-*` label system entirely (cards carry content·due·comments only).
 
 ## Component markup patterns (real, trimmed)
@@ -100,4 +100,4 @@ surface), a real `<a href>` to the card for deep-linking/open-in-new-tab, `dragg
   Playwright e2e); deep-link `<a href>` per card; the 0.16-alpha "highlight" trick for
   selection states; deadline color-state mapping (grey/yellow/red/green).
 - **Leave:** the MUI look, Roboto, pure-grey surfaces, the multi-color `--pm-color-*` chip
-  palette, 14px base. These are exactly may-kaiten's anti-references.
+  palette, 14px base. These are exactly micro-kaiten's anti-references.

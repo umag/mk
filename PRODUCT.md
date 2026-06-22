@@ -20,7 +20,7 @@ push it forward one step at a time — without friction, without losing the thre
 
 ## Product Purpose
 
-may-kaiten is a **self-hosted personal kanban canvas** — many boards laid out in one
+micro-kaiten is a **self-hosted personal kanban canvas** — many boards laid out in one
 spatial area instead of one board at a time. A large **Inbox** board is the catch-all; the
 rest are specialized (Dev, Mortgage, Life, Reading, …). You pan across the canvas; you don't
 tab-switch between apps.
@@ -30,7 +30,7 @@ button always names where it's going (`→ Doing`, `→ Waiting`). Capture is th
 first-class act — a new card is always one key away, and the input stays hot so you can dump
 five thoughts in five seconds.
 
-Success looks like: it replaces the tab chaos. The maker reaches for may-kaiten first,
+Success looks like: it replaces the tab chaos. The maker reaches for micro-kaiten first,
 captures without thinking, and always sees what's next. It runs on their own server on a
 light stack (Deno + SQLite), single-user, no cloud, no accounts, no team overhead.
 

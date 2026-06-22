@@ -2,15 +2,16 @@ import type { Op } from "../src/core/ops.ts";
 import type { Board, Card, Column, WorldState } from "../src/types.ts";
 import { applyOps, findBoard, findCard, findColumn, nextColumnOf } from "../src/core/state.ts";
 import { ARCHIVE_BOARD_ID } from "../src/core/done.ts";
+import { dueStateOf } from "../src/core/due.ts";
 import { archiveSweepOps } from "../src/core/archive.ts";
 import { loadAll, openDb, saveAll } from "./db.ts";
 
-// may-kaiten persistence API. The same applyOps reducer the browser uses runs
+// micro-kaiten persistence API. The same applyOps reducer the browser uses runs
 // here too, so the server can never diverge from the client's intent. On top of
 // the op-replay endpoints there is a small REST card API for external use, and a
 // server-side archive sweep so cards auto-archive even with no browser open.
 
-const DB_PATH = Deno.env.get("MK_DB") ?? "./may-kaiten.db";
+const DB_PATH = Deno.env.get("MK_DB") ?? "./mk.db";
 const PORT = Number(Deno.env.get("MK_PORT") ?? 8787);
 
 const db = openDb(DB_PATH);
@@ -104,12 +105,39 @@ function sweepArchive(): void {
 sweepArchive();
 setInterval(sweepArchive, 60 * 60 * 1000); // hourly
 
+// Serve the built frontend (Docker / production) for any non-API request, with
+// SPA fallback to index.html. In dev this never runs — Vite serves the app and
+// proxies /api here. STATIC_DIR is empty by default so dev stays API-only.
+const STATIC_DIR = Deno.env.get("MK_STATIC") ?? "";
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
+  ".svg": "image/svg+xml", ".json": "application/json", ".woff2": "font/woff2",
+  ".woff": "font/woff", ".png": "image/png", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json",
+};
+async function serveStatic(pathname: string): Promise<Response> {
+  if (!STATIC_DIR) return json({ error: "not found" }, 404);
+  if (pathname.includes("..")) return json({ error: "not found" }, 404);
+  const rel = pathname === "/" ? "/index.html" : pathname;
+  const ext = rel.slice(rel.lastIndexOf("."));
+  try {
+    const data = await Deno.readFile(STATIC_DIR + rel);
+    return new Response(data, { headers: { "content-type": MIME[ext] ?? "application/octet-stream" } });
+  } catch {
+    try {
+      const html = await Deno.readFile(STATIC_DIR + "/index.html"); // SPA fallback
+      return new Response(html, { headers: { "content-type": MIME[".html"] } });
+    } catch {
+      return json({ error: "not found" }, 404);
+    }
+  }
+}
+
 Deno.serve({ port: PORT }, async (req) => {
-  const { pathname } = new URL(req.url);
+  const { pathname, searchParams } = new URL(req.url);
   const parts = pathname.split("/").filter(Boolean); // e.g. ["api","cards","<id>","move"]
   const method = req.method;
   try {
-    if (parts[0] !== "api") return json({ error: "not found" }, 404);
+    if (parts[0] !== "api") return await serveStatic(pathname);
 
     // ---- op-replay + whole-workspace (the app's own sync) ----
     if (parts[1] === "health" && parts.length === 2) return json({ ok: true, boards: state.boards.length });
@@ -133,9 +161,20 @@ Deno.serve({ port: PORT }, async (req) => {
       const id = parts[2];
       const sub = parts[3];
 
-      // /api/cards
+      // /api/cards?boardId=&columnId=&due=overdue|today|soon|none&q=
       if (!id) {
-        if (method === "GET") return json(flatCards());
+        if (method === "GET") {
+          let cards = flatCards();
+          const boardId = searchParams.get("boardId");
+          const columnId = searchParams.get("columnId");
+          const due = searchParams.get("due");
+          const q = searchParams.get("q");
+          if (boardId) cards = cards.filter((c) => c.boardId === boardId);
+          if (columnId) cards = cards.filter((c) => c.columnId === columnId);
+          if (due) cards = cards.filter((c) => dueStateOf(c.due) === due);
+          if (q) { const ql = q.toLowerCase(); cards = cards.filter((c) => c.title.toLowerCase().includes(ql)); }
+          return json(cards);
+        }
         if (method === "POST") {
           const body = (await req.json()) as { columnId?: string; title?: string; notes?: string; due?: string | null; index?: number };
           if (!body.columnId || !findColumn(state, body.columnId)) return json({ error: "unknown columnId" }, 400);
@@ -206,7 +245,13 @@ Deno.serve({ port: PORT }, async (req) => {
       const sub = parts[3];
 
       if (!id) {
-        if (method === "GET") return json(state.boards.map(boardSummary));
+        if (method === "GET") {
+          const archived = searchParams.get("archived"); // "true" | "false"
+          let boards = state.boards;
+          if (archived === "true") boards = boards.filter((b) => b.id === ARCHIVE_BOARD_ID);
+          else if (archived === "false") boards = boards.filter((b) => b.id !== ARCHIVE_BOARD_ID);
+          return json(boards.map(boardSummary));
+        }
         if (method === "POST") {
           const body = (await req.json()) as { title?: string; x?: number; y?: number; columns?: string[] };
           const names = Array.isArray(body.columns) && body.columns.length ? body.columns : ["To do", "Doing", "Done"];
@@ -308,4 +353,4 @@ Deno.serve({ port: PORT }, async (req) => {
   }
 });
 
-console.log(`may-kaiten API → http://localhost:${PORT}  (db: ${DB_PATH}, ${state.boards.length} boards)`);
+console.log(`micro-kaiten API → http://localhost:${PORT}  (db: ${DB_PATH}, ${state.boards.length} boards)`);

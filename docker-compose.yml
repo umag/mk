@@ -1,0 +1,15 @@
+services:
+  mk:
+    build: .
+    image: mk
+    container_name: mk
+    ports:
+      - "8787:8787"
+    volumes:
+      - mk-data:/data        # SQLite DB persists here (/data/mk.db)
+    environment:
+      - MK_PORT=8787
+    restart: unless-stopped
+
+volumes:
+  mk-data:

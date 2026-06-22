@@ -1,4 +1,4 @@
-# may-kaiten API
+# micro-kaiten API
 
 A small HTTP API over the workspace, served by the Deno + SQLite backend
 (`server/main.ts`). Every write goes through the **same reducer the browser

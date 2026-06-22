@@ -1,4 +1,4 @@
-# Design — may-kaiten
+# Design — micro-kaiten
 
 **Theme: Night Editorial · Lamplight Amber.** A dark, type-led, keyboard-first canvas. Warm
 charcoal surfaces under a calm amber accent that glows like a desk lamp, never an alarm.
@@ -173,7 +173,7 @@ anchor); notes `1.0`/1.62 line-height; comment body `0.96`; meta/mono `0.74–0.
 Every interactive element ships all of: default, hover, focus, active, disabled, loading,
 selected. Same shape, same vocabulary everywhere.
 
-- **Top bar** — Fraunces wordmark `may·kaiten` (accent on the italic "kaiten") + mono path;
+- **Top bar** — Fraunces wordmark `micro·kaiten` (accent on the italic "kaiten") + mono path;
   the **New card** primary button (`+ New card  N`); a command/search field (`⌘K`); zoom.
 - **New card / quick capture** *(top-priority action)* — global `N` and the top-bar button both
   open capture instantly. Each board's first column carries an always-visible **quick-add**
@@ -274,13 +274,13 @@ paths the maker does. Borrowed from Kaiten's clean DOM contract (`research/kaite
   `el` helper's `data: { testid: … }` (lowercase key — `data-testId` would emit the wrong
   `data-test-id`). New controls get a testid when they're added, not retrofitted later.
 - **Divergence — no per-card deep link.** Kaiten cards are `<a href="/…/card/<id>">` for
-  open-in-new-tab and deep-linking. may-kaiten is one spatial canvas: you *pan* to a card, you
+  open-in-new-tab and deep-linking. micro-kaiten is one spatial canvas: you *pan* to a card, you
   don't route to it, so cards stay `<article>` with no anchor. Deep-linking, if ever wanted,
   attaches to the detail sheet — not the card face.
 
 ---
 
-## Anti-patterns (what may-kaiten never does)
+## Anti-patterns (what micro-kaiten never does)
 
 - Inner scrollbars on boards or columns (scroll is canvas-level only).
 - Labels/tags/colored chip soup on cards.

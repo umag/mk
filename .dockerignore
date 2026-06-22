@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.jj
+.impeccable
+.swamp
+*.db
+*.db-wal
+*.db-shm
+test-results
+playwright-report
+coverage
+research/.scratch
+.DS_Store

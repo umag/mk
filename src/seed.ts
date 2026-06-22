@@ -68,7 +68,7 @@ export function seedWorld(): WorldState {
     },
     {
       id: uid("board"),
-      title: "may-kaiten · Dev",
+      title: "micro-kaiten · Dev",
       x: 392,
       y: 40,
       // Dev / Mortgage / Life stack down the right; Inbox runs tall on the left.

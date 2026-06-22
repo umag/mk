@@ -1,8 +1,8 @@
-# may-kaiten — Kaiten-informed evolution roadmap
+# micro-kaiten — Kaiten-informed evolution roadmap
 
 > Derived from `research/` (kaiten.ru study) filtered through PRODUCT.md / DESIGN.md.
 > One umbrella, six slices. Each slice is a sibling issue under
-> `may-kaiten-kaiten-evolution`; **checklists** is the chosen first slice and has a
+> `micro-kaiten-kaiten-evolution`; **checklists** is the chosen first slice and has a
 > full review-hardened plan (in the issue model, planVersion 3). The rest are scoped
 > here at plan-grade: goal, approach, data/ops impact, effort, risk, deps, fit.
 > Effort: S ≈ ½–1 day · M ≈ 1–2 days · L ≈ 3+ days. All grounded in the current
@@ -25,7 +25,7 @@ when the facade/dnd/persistence patterns are well-worn.
 ---
 
 ## 1. Checklists / subtasks  ·  S–M  ·  chosen first slice
-Full plan lives in the issue model (`swamp data get may-kaiten-kaiten-evolution current`).
+Full plan lives in the issue model (`swamp data get micro-kaiten-kaiten-evolution current`).
 Card gains `checklist: ChecklistItem[]`; 3 dedicated ops; neutral facade progress;
 Checklist section in detail; new `checklist_items` table. See the approved-pending plan.
 
@@ -119,10 +119,10 @@ dedicated planning pass (and possibly an HTML design artifact) before implementa
 
 ## Notes
 - Each slice is a separate `@magistr/issue-lifecycle` issue when started (e.g.
-  `may-kaiten-facade-signals`, `may-kaiten-agenda`, `may-kaiten-archive`,
-  `may-kaiten-swimlanes`). They are sequenced, not parallel — one canvas, one set of
+  `micro-kaiten-facade-signals`, `micro-kaiten-agenda`, `micro-kaiten-archive`,
+  `micro-kaiten-swimlanes`). They are sequenced, not parallel — one canvas, one set of
   core files, so serial keeps the op-reducer/render churn legible.
-- Deliberately **not** on the roadmap (Kaiten has them, may-kaiten rejects by
+- Deliberately **not** on the roadmap (Kaiten has them, micro-kaiten rejects by
   philosophy): labels/tags/chips, the 13-report analytics suite, multi-view modes
   (Table/Timeline/Calendar — the agenda is our calm substitute), participants/requester/
   roles (single-user), per-card blockers (a "Waiting" column already covers it).

@@ -41,7 +41,7 @@ saved, tasks made visible, resources freed). Conversational with concrete exampl
 local-expertise framing ("российский сервис", registered Russian software). Occasional
 fire/rocket emoji for speed/growth — playful but sparing.
 
-> **Divergence for may-kaiten:** our voice is quieter and more literary (editorial
+> **Divergence for micro-kaiten:** our voice is quieter and more literary (editorial
 > typography, single-maker command deck) — *not* the SaaS-business register. Take
 > Kaiten's clarity and "one glance" discipline; leave the corporate-outcome tone.
 
@@ -62,7 +62,7 @@ Kaiten doesn't publish a brandbook, so the visual language is read from the UI i
 - **Imagery:** clean interface screenshots; covers (**обложки**) let real images
   (product photos, screenshots) ride on a card.
 
-> **Divergence:** Kaiten leans on **метки** (colored label chips) heavily. may-kaiten
+> **Divergence:** Kaiten leans on **метки** (colored label chips) heavily. micro-kaiten
 > deliberately rejects "label/tag/colored chip soup" — our cards carry *content · due ·
 > comments* only. So adopt Kaiten's facade *philosophy* (one glance, configurable,
 > color-as-state) but not its chip density.
@@ -72,7 +72,7 @@ Kaiten doesn't publish a brandbook, so the visual language is read from the UI i
 Kaiten encodes urgency in a handful of state colors — this is the part worth stealing
 wholesale (we already do a version of it):
 
-| Element | Kaiten behavior | may-kaiten echo |
+| Element | Kaiten behavior | micro-kaiten echo |
 |---|---|---|
 | **Срок** (deadline) | gray = time left · yellow = due today · red = overdue · green = completed on time | `--ink` due dot → `--due` (warm) soon → `--hot` (red) overdue → `--done` (sage) complete |
 | **Блокировка** (blocker) | bright red badge — **"яркая красная плашка"** — optionally names the blocking card | — (we have no blockers yet; red is reserved for overdue) |
@@ -86,7 +86,7 @@ because it's a team tool.
 
 ## 6. Core vocabulary (their terms → ours)
 
-| Kaiten (RU) | Gloss | may-kaiten term |
+| Kaiten (RU) | Gloss | micro-kaiten term |
 |---|---|---|
 | Пространство | Space (top container) | the canvas / a board group |
 | Доска | Board (kanban board) | Board (a draggable panel) |
@@ -145,7 +145,7 @@ on 2026-06-22. This is the actual running UI, not marketing:
   counts (1→0 / 0→1); the emptied column reveals its quick-add input. No fanfare — which
   is exactly where our *weighted* advance motion can out-class Kaiten and still stay calm.
 
-> Net: Kaiten in practice is closer to may-kaiten's aesthetic than its marketing
+> Net: Kaiten in practice is closer to micro-kaiten's aesthetic than its marketing
 > suggests — dark, clean, multi-board, single-accent, advance-capable. Our edges to
 > press: amber-warm editorial type over their neutral SaaS sans, a truly pannable
 > canvas over a fixed board row, advance as the board's *heartbeat* (not buried in a
@@ -153,7 +153,7 @@ on 2026-06-22. This is the actual running UI, not marketing:
 
 ---
 
-## What to carry into may-kaiten
+## What to carry into micro-kaiten
 
 1. **"Один взгляд" / "Один статус — одно состояние"** — keep as design laws; they're
    already implicit in our card and column rules.

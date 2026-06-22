@@ -97,7 +97,7 @@ test.describe("Board canvas flows", () => {
   test("moving a column to another board persists", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".sync-dot.online")).toBeVisible();
-    const dev = page.locator(".board", { hasText: "may-kaiten · Dev" });
+    const dev = page.locator(".board", { hasText: "micro-kaiten · Dev" });
     const head = page.locator(".board", { hasText: "Mortgage" }).locator(".col-head", { hasText: "Waiting" });
     const ch = await head.boundingBox();
     const dcols = await dev.locator(".board-cols").boundingBox();
@@ -109,7 +109,7 @@ test.describe("Board canvas flows", () => {
     await expect(dev.locator(".col-name", { hasText: "Waiting" })).toBeVisible();
     await page.waitForTimeout(700);
     await page.reload();
-    await expect(page.locator(".board", { hasText: "may-kaiten · Dev" }).locator(".col-name", { hasText: "Waiting" })).toBeVisible();
+    await expect(page.locator(".board", { hasText: "micro-kaiten · Dev" }).locator(".col-name", { hasText: "Waiting" })).toBeVisible();
   });
 
 });
