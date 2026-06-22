@@ -94,6 +94,10 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 input, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: none; }
 
+/* Clickable links inside card titles & notes — amber, underline on hover. */
+a.link { color: var(--accent); text-decoration: none; cursor: pointer; word-break: break-word; }
+a.link:hover { text-decoration: underline; }
+
 kbd {
   font: 0.72rem var(--mono);
   color: var(--ink-3);

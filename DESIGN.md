@@ -190,6 +190,8 @@ selected. Same shape, same vocabulary everywhere.
   not text-driven. When a due is set the whole card is tinted by deadline state: a calm warm
   border for soon/today, a faint red border + wash for overdue (red `--hot` is overdue-only).
   Cards carry *title · due · comments* only — **no labels/tags, and no per-card advance button**.
+  Bare http(s) URLs in the title (and in detail notes) render as **clickable amber links**
+  (`a.link`, open in a new tab); the link swallows the click so it never drags or opens the card.
 - **Advance** — advancing is **implied, not a button on every card**: focus a card and press `A`
   (`⇧A` = instant), surfaced in the HUD. The card-detail sheet holds the one advance control —
   an **arrow + the (truncated) next-column name** + `A` hint (e.g. `→ Triaged`), never a wordy

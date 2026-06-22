@@ -67,5 +67,36 @@ export function svg(markup: string, cls?: string): SVGElement {
   return node;
 }
 
+// Match http(s) URLs, stopping before trailing punctuation so "(see https://x.y)" works.
+const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]}'"])/g;
+
+/**
+ * Turn a plain string into text nodes + clickable <a> for any http(s) URLs.
+ * The anchors stop pointerdown/click from reaching the card (no drag, no
+ * open-detail) so the link just opens. Returns the original text as one node
+ * when there are no links.
+ */
+export function linkify(text: string): Node[] {
+  const out: Node[] = [];
+  let last = 0;
+  for (const m of text.matchAll(URL_RE)) {
+    const url = m[0];
+    const i = m.index ?? 0;
+    if (i > last) out.push(document.createTextNode(text.slice(last, i)));
+    const a = document.createElement("a");
+    a.href = url;
+    a.textContent = url;
+    a.className = "link";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.addEventListener("pointerdown", (e) => e.stopPropagation());
+    a.addEventListener("click", (e) => e.stopPropagation());
+    out.push(a);
+    last = i + url.length;
+  }
+  if (last < text.length) out.push(document.createTextNode(text.slice(last)));
+  return out;
+}
+
 export const uid = (prefix = "id"): string =>
   `${prefix}-${Math.floor(performance.now() * 1000).toString(36)}-${(globalThis.crypto?.getRandomValues(new Uint32Array(1))[0] ?? 0).toString(36)}`;

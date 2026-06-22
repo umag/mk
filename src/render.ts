@@ -1,4 +1,4 @@
-import { clear, el, svg } from "./dom";
+import { clear, el, linkify, svg } from "./dom";
 import { icons } from "./icons";
 import { captureBoardRects, captureCardRects, flipBoards, flipCards } from "./flip";
 import { ctx } from "./context";
@@ -205,7 +205,7 @@ function buildCard(card: Card): HTMLElement {
   const dueState = card.due ? dueStateOf(card.due) : "none";
 
   const children: Array<Node | null> = [
-    el("div", { class: "card-title", data: { testid: "card-title" }, text: card.title }),
+    el("div", { class: "card-title", data: { testid: "card-title" } }, ...linkify(card.title)),
   ];
 
   if (card.due || card.comments.length) {

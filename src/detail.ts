@@ -1,4 +1,4 @@
-import { clear, el, svg } from "./dom";
+import { clear, el, linkify, svg } from "./dom";
 import { icons } from "./icons";
 import { ctx } from "./context";
 import { sinceLabel } from "./store";
@@ -271,7 +271,7 @@ function inlineInto(node: HTMLElement, text: string): HTMLElement {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   for (const p of parts) {
     if (/^\*\*[^*]+\*\*$/.test(p)) node.appendChild(el("strong", { text: p.slice(2, -2) }));
-    else if (p) node.appendChild(document.createTextNode(p));
+    else if (p) for (const n of linkify(p)) node.appendChild(n);
   }
   return node;
 }
