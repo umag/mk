@@ -27,21 +27,22 @@ a small Deno + SQLite backend and a dependency-light Vite/TS frontend.
 
 ## Run with Docker
 
-One container (Deno serves the API **and** the built frontend on port 8787):
+One container (Deno serves the API **and** the built frontend on port 8787),
+pulling the image CI publishes to Docker Hub:
 
 ```bash
-docker compose up --build
-# → open http://localhost:8787
+docker compose up        # pulls umagistr/mk → open http://localhost:8787
 ```
 
-Or pull the published image (built & pushed by CI to Docker Hub):
+Or run it directly:
 
 ```bash
 docker run -p 8787:8787 -v mk-data:/data umagistr/mk
 ```
 
 The SQLite database persists in the `mk-data` volume (`/data/mk.db`). Override the
-port with `MK_PORT`.
+port with `MK_PORT`. To build from source instead, uncomment `build: .` in
+`docker-compose.yml` (or `docker build -t mk .`).
 
 ## Develop
 

@@ -1,7 +1,8 @@
 services:
   mk:
-    build: .
-    image: mk
+    image: umagistr/mk        # published by CI; `docker compose pull` to update
+    # To build from source instead, comment `image` above and uncomment:
+    # build: .
     container_name: mk
     ports:
       - "8787:8787"
