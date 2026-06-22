@@ -105,8 +105,30 @@ function extractTitle(html: string): string | null {
   return raw ? (decodeEntities(raw).replace(/\s+/g, " ").trim() || null) : null;
 }
 
-/** Fetch a URL and pull its title (og:title, else <title>). Null on any failure. */
+/** YouTube serves a consent/JS shell to bots, so scraping is unreliable — use
+ *  its oEmbed endpoint, which returns the video title as plain JSON. */
+async function youtubeTitle(url: string): Promise<string | null> {
+  let host: string;
+  try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
+  if (!/(^|\.)(youtube\.com|youtu\.be)$/.test(host)) return null;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 6000);
+  try {
+    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`, { signal: ctl.signal });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { title?: string };
+    return data.title?.trim() || null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Fetch a URL and pull its title (YouTube oEmbed, else og:title / <title>). */
 async function fetchTitle(url: string): Promise<string | null> {
+  const yt = await youtubeTitle(url);
+  if (yt) return yt;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 6000);
   try {
