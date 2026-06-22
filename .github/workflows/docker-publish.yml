@@ -1,9 +1,10 @@
-name: Publish to Docker Hub
+# Continuous "edge" image on every push to main. Versioned CalVer releases
+# (and the `latest` tag) are cut by release.yml.
+name: Publish edge image
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 
 jobs:
@@ -45,9 +46,7 @@ jobs:
         with:
           images: umagistr/mk
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=edge,enable={{is_default_branch}}
             type=sha,format=short
 
       - name: Build and push

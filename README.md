@@ -1,8 +1,8 @@
 # mk — micro-kaiten
 
 [![CI](https://github.com/umag/mk/actions/workflows/ci.yml/badge.svg)](https://github.com/umag/mk/actions/workflows/ci.yml)
-[![Publish to Docker Hub](https://github.com/umag/mk/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/umag/mk/actions/workflows/docker-publish.yml)
-[![Docker Hub](https://img.shields.io/docker/v/umagistr/mk?sort=semver&label=docker%20hub)](https://hub.docker.com/r/umagistr/mk)
+[![Release](https://github.com/umag/mk/actions/workflows/release.yml/badge.svg)](https://github.com/umag/mk/actions/workflows/release.yml)
+[![Docker Hub](https://img.shields.io/docker/v/umagistr/mk?sort=date&label=docker%20hub)](https://hub.docker.com/r/umagistr/mk)
 
 A self-hosted **personal kanban canvas**: many boards laid out in one spatial
 area instead of one board at a time. Capture a thought in a keystroke, advance it
@@ -43,6 +43,11 @@ docker run -p 8787:8787 -v mk-data:/data umagistr/mk
 The SQLite database persists in the `mk-data` volume (`/data/mk.db`). Override the
 port with `MK_PORT`. To build from source instead, uncomment `build: .` in
 `docker-compose.yml` (or `docker build -t mk .`).
+
+**Image tags** (`umagistr/mk`): `latest` = newest release · `edge` = newest `main`
+· `YYYY.MM.DD.N` = a specific [CalVer](https://calver.org) release (e.g.
+`2026.06.22.1`). Releases are cut with the **Release (CalVer)** workflow
+(`workflow_dispatch`), which builds the image and opens a GitHub release.
 
 ## Develop
 
