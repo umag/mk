@@ -15,6 +15,22 @@ warm near-neutral. Color means *action* or *urgency* — never decoration.
 
 ---
 
+## Design laws
+
+Two laws, taken from the Kaiten study (the positive reference) and held as hard constraints —
+every component answers to them:
+
+- **One glance (Один взгляд).** A card's state — what it is, when it's due, how much
+  conversation it carries — reads in a single look. If a signal needs a second glance to
+  decode, it's too quiet or too noisy. The card facade carries *content · due · comments* and
+  nothing more; everything past that lives in the detail sheet.
+- **One status = one state (Один статус — одно состояние).** A column means exactly one level
+  of readiness; nothing ambiguous shares a column. The board stays legible because position
+  alone is unambiguous — and that is precisely what lets **advance** be a single, obvious
+  keystroke.
+
+---
+
 ## Color
 
 ### Surfaces (warm charcoal, hue 80)
@@ -56,15 +72,47 @@ vermillion, which read as an alarm. **Clean treatment — no CRT bloom, no scanl
 |---|---|---|
 | `--hot` | `oklch(0.66 0.15 32)` | **overdue only** — the only saturated red in the system, used sparingly |
 | `--hot-bg` | `oklch(0.66 0.15 32 / 0.14)` | overdue pill background |
-| `--due` | `oklch(0.72 0.10 68)` | due-soon dot/text (warm, calm) |
+| `--due` | `oklch(0.72 0.10 68)` | due-soon **and due-today** dot/text (warm, calm) |
 | `--done` | `oklch(0.74 0.06 155)` | done/shipped marker, completed column label (muted sage) |
 
 ### Usage rules
-- Exactly one accent hue. Red (`--hot`) appears *only* on overdue items. Sage (`--done`) *only*
-  on completion. Everything else is surface + ink.
+- Exactly one accent hue (amber = *action*). Red (`--hot`) appears *only* on overdue — not on
+  due-today, not on a WIP-breach, not on a stale card. Sage (`--done`) *only* on completion.
+  Everything else is surface + ink.
+- **Calm state signals.** Advisory states (a WIP column over its limit, a card gone stale) are
+  signalled by a **contrast jump** — faint ink → full `--ink` + weight + a subtle neutral lift
+  — never by a new hue. Full-contrast ink is the loudest a non-urgent signal ever gets. Color
+  is reserved for genuine urgency (overdue) and the one action accent.
 - Inactive/disabled states never carry full-saturation accent.
 - Tinted neutrals lean very slightly warm (hue 80–85, chroma ≤ 0.01) — the warmth lives in the
   ink and accent, not in a loud surface tint.
+
+### Color-as-state — the deadline ramp
+
+Color encodes *state* applied to deadlines — Kaiten's most transferable idea, in our calm
+register. The ramp, from no-pressure to urgent to resolved:
+
+| State | Token | Treatment |
+|---|---|---|
+| no due / far future | `--ink-4` | quiet grey dot, no color |
+| due soon (≤ 7d) | `--due` | warm dot + text |
+| **due today** | `--due` | warm — *today is not red*; it's the last calm step |
+| **overdue** | `--hot` | the system's only saturated red |
+| completed | `--done` | muted sage |
+
+**Bounded future triggers (pre-specified calm).** When multi-state signals arrive (roadmap:
+stale card, WIP breach) they obey the *calm state signal* rule above — neutral contrast-jump
+markers, never red. Red stays overdue-only; an over-limit or stale card is advisory, not an
+alarm.
+
+### Selection & highlight fills
+
+One fill pattern for every "active / selected / will-receive-the-drop" state: a **translucent
+accent wash** — `--accent-ghost` (amber at ~0.13 alpha), optionally over a 1px accent inset.
+(Kaiten uses the identical trick at 0.16 alpha across its whole `--pm-color-*` palette; we use
+one calm amber.) It covers the focus halo, the command-palette active row, the column
+drop-target, and the quick-add ring — the same wash everywhere, so "active" always looks the
+same. Never a solid accent block for selection; the wash keeps the surface calm.
 
 ---
 
@@ -107,8 +155,14 @@ anchor); notes `1.0`/1.62 line-height; comment body `0.96`; meta/mono `0.74–0.
 - The canvas pans (drag / `Space`-drag / trackpad) with **inertia**, and zooms. Background is a
   warm dot grid with a soft radial glow at top and a gentle vignette, so empty space reads as
   "more canvas," not emptiness.
-- **Boards** are draggable panels positioned in 2D space. A big **Inbox** anchors the canvas;
-  specialized boards are neighbors.
+- **Boards** are draggable panels positioned in 2D space. Specialized boards are neighbours of
+  a big **Inbox**.
+- **The anchor board defines the canvas corner.** The leftmost — then topmost — board (the
+  Inbox, in practice) is the **anchor**: its top-left corner is the canvas's fixed top-left
+  border. The anchor is **pinned** (not draggable) and carries an amber **pin** glyph in place
+  of the drag grip. Every other board is **clamped** to the anchor's corner — you can't drag a
+  board above or left of it; boards only ever fan out to the **right and below**, snapping clear
+  of each other (never overlapping). Panning can't reveal void above or left of the anchor.
 - A **minimap** (bottom-right) shows board rectangles + the current viewport; thin **canvas
   scrollbars** ride the right/bottom edges. A zoom indicator lives in the top bar.
 
@@ -128,18 +182,35 @@ selected. Same shape, same vocabulary everywhere.
 - **Board** — panel with a header (Fraunces title, mono `flow` like `backlog → doing → done`,
   count) over a row of columns.
 - **Column** — mono uppercase label + count, optional `WIP n` chip; completed column label uses
-  `--done`. No scrollbar — it grows.
-- **Card** — `--card` surface; title at 16px; a foot row with a **due** dot+date (warm; red
-  `--hot` only when overdue), a **comment** count (mono + bubble icon), and the **advance
-  button**. Cards carry *content · due · comments* only — **no labels/tags**.
-- **Advance button** — `→ {NextColumn}` naming the destination. Ghost by default; on the focused
-  card it fills with `--accent` + `--accent-ink` and shows a `⏎ advance` key hint above the card.
+  `--done`. No scrollbar — it grows. **Click the label to rename it inline** (no menu detour);
+  drag the header to reorder.
+- **Card** — fixed-width `--card` surface; **title** always (16px). A foot appears **only when
+  there's meta**: a **due** date (left, mono, never wraps) and/or a **comment** glyph + count
+  (right). Nothing shifts as text changes — the card is a fixed size and its fields are anchored,
+  not text-driven. When a due is set the whole card is tinted by deadline state: a calm warm
+  border for soon/today, a faint red border + wash for overdue (red `--hot` is overdue-only).
+  Cards carry *title · due · comments* only — **no labels/tags, and no per-card advance button**.
+- **Advance** — advancing is **implied, not a button on every card**: focus a card and press `A`
+  (`⇧A` = instant), surfaced in the HUD. The card-detail sheet holds the one advance control —
+  an **arrow + the (truncated) next-column name** + `A` hint (e.g. `→ Triaged`), never a wordy
+  "Advance to …".
 - **Card detail sheet** — centered editorial sheet over a blurred, dimmed canvas. Header:
   breadcrumb (`Board / Column · card #`) + key hints (`E` edit, `⏎` advance) + close. Body:
   Fraunces title; a meta bar with **due** and a **time-in-column** metric and a prominent
-  **Advance to {Next} ⏎** button; a **Notes** section (markdown body — the "card content"
+  **`→ {Next}` advance** button (arrow + truncated next-column name + `A`); a **Notes** section (markdown body — the "card content"
   priority); a **Comments** thread with avatars + timestamps and a `⌘⏎` composer. (Card detail
   is the one allowed "modal" — it's a focused peek, not a flow blocker.)
+- **Date picker** — a **bespoke** calendar popover (never the browser's native control, which
+  can't be themed). Opens under the due field on `--panel-hi` with `--sh-pop`; mono numerals,
+  Monday-start week, amber-fill on the selected day, `--accent` text on today, dimmed `--ink-4`
+  for adjacent-month days; `Today` / `Clear` footer. Keyboard-first: arrows move the cursor,
+  `⏎` picks, `Esc` closes, `PageUp/Dn` change month. Sits above the sheet at `--z-popover`.
+- **Archive board** — a special, **normally-hidden** board (reserved id) that holds cards which
+  sat in a done column for **≥ 10 days** (swept on load and hourly; cards just *move* there via
+  the normal reducer, so it persists like any edit). It's excluded from the canvas, the anchor,
+  the minimap, and the palette's board/card lists. You reach it only via **⌘K → "Go to Archive"**;
+  the top bar then reads `~/archive` with a `← Canvas` button, and `Esc` returns. The Archive is
+  read-only (no add/menu/rename/drag, box glyph instead of the grip) — a quiet shelf, not a lane.
 - **Hotkey HUD** — persistent bottom-left bar listing the live keys: `N` new · `⏎` advance ·
   `O` open · `J K` move · `Space` pan · `/` search. Keyboard-first is surfaced, not hidden.
 - **kbd** — mono, 1px border with a 2px bottom border (keycap), on `--bg`.
@@ -188,13 +259,59 @@ depends on it.
 
 ---
 
+## Automation & data contract
+
+The interface is also a test surface: keyboard-first means the e2e suite drives the same
+paths the maker does. Borrowed from Kaiten's clean DOM contract (`research/kaiten-frontend-reference.md`):
+
+- **Stable hooks on every interactive node.** Cards, boards and columns carry semantic `data-*`
+  ids (`data-card-id`, `data-board-id`, `data-column-id`) that the app and Playwright both
+  select on — never positional or class-based selectors for behaviour.
+- **`data-testid` for the e2e.** Every interactive node carries a stable `data-testid` naming
+  *what kind* of control it is — `card`, `card-advance-button`, `column-menu-button`,
+  `new-card-button`, `command-palette-item`, `menu-item-<action>` (slugged from the label).
+  Combined with the `data-*` ids above: testids say *what*, ids say *which*. Set them via the
+  `el` helper's `data: { testid: … }` (lowercase key — `data-testId` would emit the wrong
+  `data-test-id`). New controls get a testid when they're added, not retrofitted later.
+- **Divergence — no per-card deep link.** Kaiten cards are `<a href="/…/card/<id>">` for
+  open-in-new-tab and deep-linking. may-kaiten is one spatial canvas: you *pan* to a card, you
+  don't route to it, so cards stay `<article>` with no anchor. Deep-linking, if ever wanted,
+  attaches to the detail sheet — not the card face.
+
+---
+
 ## Anti-patterns (what may-kaiten never does)
 
 - Inner scrollbars on boards or columns (scroll is canvas-level only).
 - Labels/tags/colored chip soup on cards.
 - Loud or alarming color; saturated accents on idle/disabled states; red anywhere but overdue.
+- Red (or any new hue) on a WIP-breach, a stale card, or due-today — advisory states stay calm
+  (a contrast jump, never an alarm color). Red is overdue-only.
 - Side-stripe accent borders, gradient text, decorative glassmorphism, hero-metric templates,
   identical icon-card grids, tracked all-caps eyebrows on every section.
 - Modal-first flows (card detail is the single, deliberate exception).
 - Tiny cramped type; light-gray body text; CRT glow/scanlines (evaluated, rejected as too
   bright for long reading).
+
+---
+
+## Validated against Kaiten (live app, 2026-06-22)
+
+The system was checked against the category leader — `aopab.kaiten.ru`, driven live and
+captured in `research/`. The findings *confirmed* the direction rather than redirecting it:
+
+- **The dark warm canvas is right.** Kaiten's real product ships a near-black warm-charcoal
+  canvas with light text and reads as calm, not gloomy — exactly Night Editorial's bet.
+- **One accent, carrying action.** Kaiten uses a single in-app accent (purple) for the primary
+  `+`, the active tab, badges. We keep the *one-accent* discipline; the hue diverges (amber,
+  warm/editorial) by choice.
+- **Clean cards survive density.** A real 37-card board showed just title + a small avatar — no
+  chip soup. Our *content · due · comments* facade clears the same bar.
+- **Advance exists, but buried.** Kaiten's "→ next column" pill hides in the card-detail modal;
+  we make advance the board's *heartbeat* (focused-card button + `⏎`). That is our signature edge.
+
+**Deliberate divergences (evidence-backed, not oversights):** amber not purple · warm OKLCH
+surfaces (hue 80) not MUI pure-grey · 16px base not 14px · no `--pm-color-*` label/chip palette
+· pannable 2D canvas not a fixed board row · tactile *weighted* advance not a silent relocate.
+Full study: `research/kaiten-design-language.md`, `kaiten-frontend-reference.md`,
+`kaiten-interface-map.md`.

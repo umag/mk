@@ -3,6 +3,7 @@ import { icons } from "./icons";
 import { ctx } from "./context";
 import { sinceLabel } from "./store";
 import { dueLabel, dueStateOf } from "./core/due";
+import { closeCalendar, isCalendarOpen, openCalendar } from "./calendar";
 import { playSound } from "./sound";
 import type { Card } from "./types";
 
@@ -18,7 +19,7 @@ export function openDetail(cardId: string) {
   editingNotes = false;
 
   backdrop = el("div", { class: "backdrop", on: { pointerdown: closeDetail } });
-  sheet = el("div", { class: "detail", attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Card detail" } });
+  sheet = el("div", { class: "detail", data: { testid: "card-detail" }, attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Card detail" } });
   document.body.append(backdrop, sheet);
   rebuild();
   playSound("open");
@@ -27,6 +28,7 @@ export function openDetail(cardId: string) {
 
 export function closeDetail() {
   if (!sheet) return;
+  closeCalendar();
   window.removeEventListener("keydown", onKey, true);
   backdrop?.remove();
   sheet.remove();
@@ -41,6 +43,7 @@ export function isDetailOpen() {
 
 function onKey(e: KeyboardEvent) {
   if (!sheet) return;
+  if (isCalendarOpen()) return; // the date picker owns keys while it's open
   const typing = isField(e.target);
   if (e.key === "Escape") {
     if (editingNotes) { editingNotes = false; rebuild(); }
@@ -71,12 +74,14 @@ function advanceFromDetail() {
 
 function rebuild() {
   if (!sheet || !currentId) return;
+  closeCalendar(); // the picker anchors to a field this rebuild is about to replace
   const loc = ctx.store.findCard(currentId);
   if (!loc) { closeDetail(); return; }
   const { board, column, card, colIndex } = loc;
   const next = board.columns[colIndex + 1] ?? null;
   const dueState = dueStateOf(card.due);
-  const dueHot = dueState === "overdue" || dueState === "today";
+  const dueHot = dueState === "overdue"; // red is overdue-only (see DESIGN.md color-as-state)
+  const dueWarm = dueState === "today" || dueState === "soon";
   clear(sheet);
 
   // header — crumb + delete + close (hotkey hints removed; buttons carry their own)
@@ -87,7 +92,7 @@ function rebuild() {
       el(
         "span",
         { class: "crumb" },
-        el("span", { class: `dot${dueHot ? " hot" : ""}` }),
+        el("span", { class: `dot${dueHot ? " hot" : dueWarm ? " soon" : ""}` }),
         el("b", { text: board.title }),
         el("span", { class: "sep", text: "/" }),
         el("span", { text: column.name }),
@@ -95,11 +100,13 @@ function rebuild() {
       el("span", { class: "meta-spacer" }),
       el("button", {
         class: "detail-close detail-danger",
+        data: { testid: "card-detail-delete" },
         attrs: { "aria-label": "Delete card", title: "Delete card (⌫)" },
         on: { click: deleteFromDetail },
       }, svg(icons.trash)),
       el("button", {
         class: "detail-close",
+        data: { testid: "card-detail-close" },
         attrs: { "aria-label": "Close", title: "Close (Esc / W)" },
         on: { click: closeDetail },
       }, svg(icons.close)),
@@ -112,6 +119,7 @@ function rebuild() {
   // title (click to edit)
   const title = el("h1", {
     class: "detail-title",
+    data: { testid: "card-detail-title" },
     text: card.title,
     attrs: { title: "Click to edit" },
     on: { click: () => editTitle(card) },
@@ -120,33 +128,28 @@ function rebuild() {
 
   // meta bar
   const meta = el("div", { class: "meta-bar" });
-  const dueInput = el("input", { attrs: { type: "date", "aria-label": "Due date" } });
-  dueInput.value = card.due ?? "";
-  dueInput.addEventListener("change", () => {
-    ctx.store.updateCard(card.id, { due: dueInput.value || null });
-    rebuild();
-  });
+  const setDue = (iso: string | null) => { ctx.store.updateCard(card.id, { due: iso }); rebuild(); };
   meta.appendChild(
     el(
       "div",
       {
-        class: `field due-field${card.due && dueHot ? " due-hot" : ""}`,
+        class: `field due-field${card.due && dueHot ? " due-hot" : card.due && dueWarm ? " due-soon" : ""}`,
+        data: { testid: "card-detail-due" },
         on: {
           click: (e: MouseEvent) => {
             if ((e.target as HTMLElement).closest(".due-clear")) return;
-            dueInput.showPicker?.();
-            dueInput.focus();
+            openCalendar(e.currentTarget as HTMLElement, card.due, setDue);
           },
         },
       },
       svg(icons.calendar),
       el("span", { class: "due-text", text: card.due ? `Due ${dueLabel(card.due)}` : "Add due date" }),
-      dueInput,
       card.due
         ? el("button", {
           class: "due-clear",
+          data: { testid: "card-detail-due-clear" },
           attrs: { "aria-label": "Clear due date", title: "Clear" },
-          on: { click: (e: MouseEvent) => { e.stopPropagation(); ctx.store.updateCard(card.id, { due: null }); rebuild(); } },
+          on: { click: (e: MouseEvent) => { e.stopPropagation(); setDue(null); } },
         }, svg(icons.close))
         : null,
     ),
@@ -155,8 +158,15 @@ function rebuild() {
   meta.appendChild(el("span", { class: "meta-spacer" }));
   if (next) {
     meta.appendChild(
-      el("button", { class: "advance-btn", on: { click: advanceFromDetail } },
-        svg(icons.advance), `Advance to ${next.name}`, el("kbd", { text: "A" })),
+      el("button", {
+        class: "advance-btn",
+        data: { testid: "card-detail-advance" },
+        attrs: { "aria-label": `Advance to ${next.name}`, title: `Advance to ${next.name}` },
+        on: { click: advanceFromDetail },
+      },
+        svg(icons.advance),
+        el("span", { class: "adv-next", text: next.name }),
+        el("kbd", { text: "A" })),
     );
   } else {
     meta.appendChild(el("span", { class: "advance-btn is-last" }, svg(icons.check), "Last column"));
@@ -170,7 +180,7 @@ function rebuild() {
       editingNotes ? null : el("button", { class: "hint", on: { click: () => { editingNotes = true; rebuild(); } } }, el("kbd", { text: "E" }), " to edit")),
   );
   if (editingNotes) {
-    const ta = el("textarea", { class: "notes-edit", attrs: { "aria-label": "Edit notes", placeholder: "Markdown — **bold**, - bullets" } });
+    const ta = el("textarea", { class: "notes-edit", data: { testid: "card-detail-notes-edit" }, attrs: { "aria-label": "Edit notes", placeholder: "Markdown — **bold**, - bullets" } });
     ta.value = card.notes;
     notes.appendChild(ta);
     const save = () => { ctx.store.updateCard(card.id, { notes: ta.value }); editingNotes = false; rebuild(); };
@@ -209,7 +219,7 @@ function rebuild() {
   sheet.appendChild(body);
 
   // composer
-  const ta = el("textarea", { attrs: { placeholder: "Add a note…  ⌘⏎ to send", rows: "1", "aria-label": "Add a comment" } });
+  const ta = el("textarea", { data: { testid: "comment-input" }, attrs: { placeholder: "Add a note…  ⌘⏎ to send", rows: "1", "aria-label": "Add a comment" } });
   const send = () => {
     const v = ta.value.trim();
     if (!v) return;
@@ -220,14 +230,14 @@ function rebuild() {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); send(); }
   });
   sheet.appendChild(
-    el("div", { class: "composer" }, ta, el("button", { class: "send", on: { click: send } }, "Send", el("kbd", { text: "⌘↵" }))),
+    el("div", { class: "composer" }, ta, el("button", { class: "send", data: { testid: "comment-send" }, on: { click: send } }, "Send", el("kbd", { text: "⌘↵" }))),
   );
 }
 
 function editTitle(card: Card) {
   const node = sheet?.querySelector<HTMLElement>(".detail-title");
   if (!node) return;
-  const input = el("textarea", { class: "detail-title-input", attrs: { rows: "1", "aria-label": "Edit title" } });
+  const input = el("textarea", { class: "detail-title-input", data: { testid: "card-detail-title-input" }, attrs: { rows: "1", "aria-label": "Edit title" } });
   input.value = card.title;
   node.replaceWith(input);
   input.focus();

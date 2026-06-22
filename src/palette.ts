@@ -2,6 +2,38 @@ import { clear, el, svg } from "./dom";
 import { icons, type IconName } from "./icons";
 import { ctx } from "./context";
 import { computeBoardSpot } from "./render";
+import { isArchiveBoard } from "./core/done";
+
+/** Switch to the hidden Archive board and frame it. */
+export function enterArchive() {
+  const s = ctx.store;
+  s.ensureArchiveBoard();
+  s.view.archiveOpen = true;
+  ctx.setFocus(null);
+  ctx.rerender();
+  const a = s.archiveBoard;
+  if (a) {
+    requestAnimationFrame(() => {
+      const elm = ctx.world.querySelector<HTMLElement>(`[data-board-id="${a.id}"]`);
+      ctx.centerOn(a.x, a.y, elm?.offsetWidth ?? 280, elm?.offsetHeight ?? 220);
+    });
+  }
+}
+
+/** Return to the normal canvas from the Archive view. */
+export function exitArchive() {
+  const s = ctx.store;
+  if (!s.view.archiveOpen) return;
+  s.view.archiveOpen = false;
+  ctx.rerender();
+  const b0 = s.world.boards.find((b) => !isArchiveBoard(b));
+  if (b0) {
+    requestAnimationFrame(() => {
+      const elm = ctx.world.querySelector<HTMLElement>(`[data-board-id="${b0.id}"]`);
+      ctx.centerOn(b0.x, b0.y, elm?.offsetWidth ?? 280, elm?.offsetHeight ?? 220);
+    });
+  }
+}
 
 interface Cmd {
   group: string;
@@ -27,9 +59,10 @@ export function openPalette() {
   if (panel) return;
   ctx.store.view.paletteOpen = true;
   backdrop = el("div", { class: "backdrop", on: { pointerdown: closePalette } });
-  panel = el("div", { class: "cmdk", attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Command palette" } });
+  panel = el("div", { class: "cmdk", data: { testid: "command-palette" }, attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Command palette" } });
   input = el("input", {
     class: "cmdk-input",
+    data: { testid: "command-palette-input" },
     attrs: { type: "text", placeholder: "Search boards & cards, or run a command…", "aria-label": "Command palette", autocomplete: "off" },
   });
   list = el("div", { class: "cmdk-list", attrs: { role: "listbox" } });
@@ -68,17 +101,21 @@ function move(d: number) {
 
 function buildAll(): Cmd[] {
   const s = ctx.store;
-  const cmds: Cmd[] = [
-    { group: "Actions", icon: "plus", label: "New board", sub: "Add a board to the canvas", run: () => {
-      const spot = computeBoardSpot();
-      const b = s.addBoard(spot.x, spot.y);
-      closePalette();
-      ctx.centerOn(b.x, b.y, 280, 220);
-      ctx.requestColumnRename(b.columns[0]!.id);
-    } },
-    { group: "Actions", icon: "jump", label: "Zoom to fit", sub: "Frame every board", run: () => { closePalette(); fitAll(); } },
-  ];
+  const cmds: Cmd[] = s.view.archiveOpen
+    ? [{ group: "Actions", icon: "board", label: "Back to canvas", sub: "Leave the Archive", run: () => { closePalette(); exitArchive(); } }]
+    : [
+      { group: "Actions", icon: "plus", label: "New board", sub: "Add a board to the canvas", run: () => {
+        const spot = computeBoardSpot();
+        const b = s.addBoard(spot.x, spot.y);
+        closePalette();
+        ctx.centerOn(b.x, b.y, 280, 220);
+        ctx.requestColumnRename(b.columns[0]!.id);
+      } },
+      { group: "Actions", icon: "jump", label: "Zoom to fit", sub: "Frame every board", run: () => { closePalette(); fitAll(); } },
+      { group: "Actions", icon: "box", label: "Go to Archive", sub: "Done cards land here after 10 days", run: () => { closePalette(); enterArchive(); } },
+    ];
   for (const b of s.world.boards) {
+    if (isArchiveBoard(b)) continue; // the Archive is reached via its own command
     const n = b.columns.reduce((a, c) => a + c.cards.length, 0);
     cmds.push({
       group: "Boards", icon: "board", label: b.title, sub: `${b.columns.length} columns · ${n} cards`,
@@ -86,6 +123,7 @@ function buildAll(): Cmd[] {
     });
   }
   for (const b of s.world.boards) {
+    if (isArchiveBoard(b)) continue;
     for (const col of b.columns) {
       for (const card of col.cards) {
         cmds.push({
@@ -129,6 +167,7 @@ function paint() {
     list!.appendChild(
       el("button", {
         class: `cmdk-item${i === active ? " active" : ""}`,
+        data: { testid: "command-palette-item" },
         attrs: { role: "option" },
         on: { click: () => c.run(), pointermove: () => { if (active !== i) { active = i; paint(); } } },
       },
@@ -141,17 +180,22 @@ function paint() {
 }
 
 function revealBoard(boardId: string) {
-  const b = ctx.store.findBoard(boardId);
+  const s = ctx.store;
+  const b = s.findBoard(boardId);
   if (!b) return;
-  const elm = ctx.world.querySelector<HTMLElement>(`[data-board-id="${boardId}"]`);
-  ctx.centerOn(b.x, b.y, elm?.offsetWidth ?? 280, elm?.offsetHeight ?? 200);
+  if (s.view.archiveOpen) { s.view.archiveOpen = false; ctx.rerender(); } // jumping out of the Archive
+  requestAnimationFrame(() => {
+    const elm = ctx.world.querySelector<HTMLElement>(`[data-board-id="${boardId}"]`);
+    ctx.centerOn(b.x, b.y, elm?.offsetWidth ?? 280, elm?.offsetHeight ?? 200);
+  });
 }
 
 function fitAll() {
   const s = ctx.store;
-  if (!s.world.boards.length) return;
+  const boards = s.world.boards.filter((b) => !isArchiveBoard(b));
+  if (!boards.length) return;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const b of s.world.boards) {
+  for (const b of boards) {
     const elm = ctx.world.querySelector<HTMLElement>(`[data-board-id="${b.id}"]`);
     const w = elm?.offsetWidth ?? 280, h = elm?.offsetHeight ?? 200;
     minX = Math.min(minX, b.x); minY = Math.min(minY, b.y);

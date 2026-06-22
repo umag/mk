@@ -1,7 +1,8 @@
 import { el } from "./dom";
 import { ctx } from "./context";
 import { playSound } from "./sound";
-import { BOARD_GAP, type Rect, resolveOverlap } from "./board-layout";
+import { anchorIndex, BOARD_GAP, clampInsideOrigin, originOf, type Rect, resolveOverlap } from "./board-layout";
+import { isArchiveBoard } from "./core/done";
 
 const THRESHOLD = 5;
 
@@ -193,6 +194,18 @@ function startBoardDrag(e: PointerEvent, head: HTMLElement) {
   const boardId = boardEl.dataset.boardId!;
   const board = ctx.store.findBoard(boardId);
   if (!board) return;
+
+  // The anchor board (leftmost, then topmost) is pinned — it defines the
+  // canvas's top-left border, so it doesn't move. Every other board is clamped
+  // to its corner: you can't drag a board above or left of the anchor.
+  if (isArchiveBoard(board)) return; // the Archive board is view-only, not draggable
+  const boards = ctx.store.world.boards.filter((b) => !isArchiveBoard(b));
+  const ai = anchorIndex(boards);
+  if (ai >= 0 && boards[ai]!.id === boardId) return;
+  // Clamp against the OTHER boards' corner, so the dragged board can't lower
+  // the wall it's being held against (the pinned anchor is always among them).
+  const origin = originOf(boards.filter((b) => b.id !== boardId));
+
   const startX = e.clientX;
   const startY = e.clientY;
   let dragging = false;
@@ -207,8 +220,10 @@ function startBoardDrag(e: PointerEvent, head: HTMLElement) {
       boardEl.classList.add("dragging");
     }
     const zoom = ctx.store.view.zoom;
-    x = board.x + (ev.clientX - startX) / zoom;
-    y = board.y + (ev.clientY - startY) / zoom;
+    ({ x, y } = clampInsideOrigin({
+      x: board.x + (ev.clientX - startX) / zoom,
+      y: board.y + (ev.clientY - startY) / zoom,
+    }, origin));
     boardEl.style.setProperty("--bx", `${x}px`);
     boardEl.style.setProperty("--by", `${y}px`);
     if (!scheduled) {
@@ -222,10 +237,10 @@ function startBoardDrag(e: PointerEvent, head: HTMLElement) {
     window.removeEventListener("pointerup", up);
     boardEl.classList.remove("dragging");
     if (!dragging) return;
-    // snap clear of any other board so boards never overlap
+    // snap clear of other boards (never overlap), staying inside the anchor corner
     const moved: Rect = { x, y, w: boardEl.offsetWidth, h: boardEl.offsetHeight };
     const others = otherBoardRects(boardEl);
-    const resolved = resolveOverlap(moved, others, BOARD_GAP);
+    const resolved = resolveOverlap(moved, others, BOARD_GAP, 64, origin);
     ctx.store.moveBoard(boardId, resolved.x, resolved.y);
   };
 

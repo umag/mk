@@ -16,8 +16,13 @@ export interface Bounds {
   maxY: number;
 }
 
-/** Union of every board rect, expanded outward by `margin` for breathing room. */
-export function sceneBounds(boards: Rect[], margin: number): Bounds {
+/**
+ * Union of every board rect, expanded outward by `margin` for breathing room.
+ * When `origin` is given (the anchor board's top-left), the left/top edges are
+ * pinned hard to it — no margin there — so panning can't reveal void above or
+ * left of the anchor. The right/bottom still get the margin.
+ */
+export function sceneBounds(boards: Rect[], margin: number, origin?: { x: number; y: number }): Bounds {
   if (boards.length === 0) {
     return { minX: -margin, minY: -margin, maxX: margin, maxY: margin };
   }
@@ -31,7 +36,12 @@ export function sceneBounds(boards: Rect[], margin: number): Bounds {
     maxX = Math.max(maxX, b.x + b.w);
     maxY = Math.max(maxY, b.y + b.h);
   }
-  return { minX: minX - margin, minY: minY - margin, maxX: maxX + margin, maxY: maxY + margin };
+  return {
+    minX: origin ? origin.x : minX - margin,
+    minY: origin ? origin.y : minY - margin,
+    maxX: maxX + margin,
+    maxY: maxY + margin,
+  };
 }
 
 /**

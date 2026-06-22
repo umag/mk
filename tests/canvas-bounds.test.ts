@@ -13,6 +13,20 @@ describe("sceneBounds", () => {
   it("falls back to a margin box around the origin when there are no boards", () => {
     expect(sceneBounds([], 50)).toEqual({ minX: -50, minY: -50, maxX: 50, maxY: 50 });
   });
+
+  it("pins the top-left hard to the anchor origin (no margin there)", () => {
+    const boards: Rect[] = [
+      { x: 40, y: 40, w: 100, h: 100 },
+      { x: 300, y: 200, w: 100, h: 100 },
+    ];
+    // left/top flush to the anchor corner; right/bottom keep the margin
+    expect(sceneBounds(boards, 20, { x: 40, y: 40 })).toEqual({
+      minX: 40,
+      minY: 40,
+      maxX: 420,
+      maxY: 320,
+    });
+  });
 });
 
 describe("clampPan", () => {

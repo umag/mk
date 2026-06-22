@@ -51,4 +51,6 @@ export interface ViewState {
   focusedCardId: ID | null;
   detailCardId: ID | null;
   paletteOpen: boolean;
+  /** Viewing the hidden Archive board instead of the normal canvas. */
+  archiveOpen: boolean;
 }

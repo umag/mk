@@ -1,5 +1,5 @@
 import { ctx } from "./context";
-import { isPaletteOpen } from "./palette";
+import { exitArchive, isPaletteOpen } from "./palette";
 import { isDetailOpen } from "./detail";
 
 export function initKeyboard() {
@@ -13,6 +13,13 @@ function isTyping(t: EventTarget | null): boolean {
 
 function onKey(e: KeyboardEvent) {
   if (isPaletteOpen() || isDetailOpen()) return; // overlays own their keys
+
+  // Archive is a read-only view: only Esc (leave) and ⌘K work here.
+  if (ctx.store.view.archiveOpen) {
+    if (e.key === "Escape") { e.preventDefault(); exitArchive(); }
+    else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); ctx.openPalette(); }
+    return;
+  }
 
   const meta = e.metaKey || e.ctrlKey;
   if (meta && e.key.toLowerCase() === "k") {

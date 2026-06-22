@@ -1,6 +1,7 @@
 import type { Board, Card, Column, ID, ViewState, WorldState } from "./types";
 import type { Op } from "./core/ops";
 import { applyOp, type CardLoc, findBoard, findCard, findColumn, nextColumnOf } from "./core/state";
+import { ARCHIVE_AFTER_MS, ARCHIVE_BOARD_ID, ARCHIVE_COLUMN_ID, isDoneColumn } from "./core/done";
 import { uid } from "./dom";
 
 /**
@@ -13,7 +14,7 @@ export class Store {
   world: WorldState;
   view: ViewState = {
     panX: 0, panY: 0, zoom: 1,
-    focusedCardId: null, detailCardId: null, paletteOpen: false,
+    focusedCardId: null, detailCardId: null, paletteOpen: false, archiveOpen: false,
   };
 
   private dataSubs = new Set<() => void>();
@@ -160,6 +161,43 @@ export class Store {
   moveBoard(id: ID, x: number, y: number) {
     if (!this.findBoard(id)) return;
     this.commit({ t: "moveBoard", id, x, y });
+  }
+
+  // ---- archive ----
+  get archiveBoard(): Board | null { return this.findBoard(ARCHIVE_BOARD_ID); }
+
+  /** Create the hidden Archive board once (idempotent; safe for existing data). */
+  ensureArchiveBoard(): void {
+    if (this.findBoard(ARCHIVE_BOARD_ID)) return;
+    const board: Board = {
+      id: ARCHIVE_BOARD_ID,
+      title: "Archive",
+      x: 40,
+      y: 40,
+      columns: [{ id: ARCHIVE_COLUMN_ID, name: "Archived", wip: null, cards: [] }],
+    };
+    this.commit({ t: "addBoard", board });
+  }
+
+  /**
+   * Move every card that has sat in a done column for ≥ the threshold into the
+   * Archive. Reuses the moveCard op, so it persists and replays like any edit.
+   * Returns how many were archived.
+   */
+  archiveDoneCards(now = Date.now()): number {
+    this.ensureArchiveBoard();
+    const ids: ID[] = [];
+    for (const b of this.world.boards) {
+      if (b.id === ARCHIVE_BOARD_ID) continue;
+      b.columns.forEach((col, i) => {
+        if (!isDoneColumn(b, i)) return;
+        for (const c of col.cards) {
+          if (now - c.enteredColumnAt >= ARCHIVE_AFTER_MS) ids.push(c.id);
+        }
+      });
+    }
+    for (const id of ids) this.commit({ t: "moveCard", id, toColumnId: ARCHIVE_COLUMN_ID, index: 0, at: now });
+    return ids.length;
   }
 }
 

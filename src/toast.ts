@@ -8,10 +8,10 @@ export function initToast() {
 }
 
 export function toast(msg: string, opts: { undo?: () => void } = {}) {
-  const node = el("div", { class: "toast" });
+  const node = el("div", { class: "toast", data: { testid: "toast" } });
   node.innerHTML = msg; // callers pass small, trusted markup (e.g. <b>)
   if (opts.undo) {
-    const u = el("button", { class: "undo", text: "Undo" });
+    const u = el("button", { class: "undo", data: { testid: "toast-undo" }, text: "Undo" });
     u.addEventListener("click", () => {
       opts.undo?.();
       dismiss(node);

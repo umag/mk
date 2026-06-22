@@ -69,6 +69,7 @@
   --z-menu: 90;
   --z-backdrop: 100;
   --z-modal: 110;
+  --z-popover: 118; /* date picker over the card-detail sheet */
   --z-toast: 120;
   --z-drag: 130;
 
@@ -129,6 +130,14 @@ kbd {
 .brand-sub { font: 0.72rem var(--mono); color: var(--ink-4); letter-spacing: 0.04em; }
 .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-4); transition: background var(--t-fast), box-shadow var(--t-fast); }
 .sync-dot.online { background: var(--done); box-shadow: 0 0 8px -1px var(--done); }
+.archive-back {
+  align-items: center; gap: 5px; height: 28px; padding: 0 10px 0 7px; margin-left: 4px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--col);
+  color: var(--ink-2); font: 0.78rem var(--mono);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.archive-back:hover { background: var(--card); color: var(--ink); }
+.archive-back svg { width: 14px; height: 14px; }
 .topbar-spacer { flex: 1; }
 
 .btn {
@@ -264,6 +273,16 @@ kbd {
 .board-grip { color: var(--ink-4); display: grid; place-items: center; opacity: 0; transition: opacity var(--t-fast); }
 .board:hover .board-grip { opacity: 1; }
 .board-grip svg { width: 16px; height: 16px; }
+
+/* Anchor board: pinned to the canvas corner — it defines the top-left border
+   and can't be dragged. The pin glyph is a persistent status, not a hover cue. */
+.board.is-anchor > .board-head { cursor: default; }
+.board.is-anchor .board-grip { opacity: 1; color: var(--accent); }
+
+/* Archive board: a quiet, read-only home for long-done cards. */
+.board.is-archive > .board-head { cursor: default; }
+.board.is-archive .board-grip { opacity: 1; color: var(--ink-3); }
+.col-archive-empty { color: var(--ink-4); font-size: 0.9rem; padding: 10px 2px; }
 .board-title {
   font-family: var(--serif);
   font-weight: 560;
@@ -317,7 +336,9 @@ kbd {
   border-radius: 5px;
   padding: 1px 6px;
 }
-.col-wip.over { color: var(--hot); border-color: var(--hot); }
+/* WIP breach stays calm: the contrast jump (faint → full-ink + bold + lift) is
+   the signal, not an alarm hue. Red is reserved for overdue (color-as-state). */
+.col-wip.over { color: var(--ink); border-color: var(--ink-4); background: oklch(1 0 0 / 0.05); font-weight: 700; }
 .col-menu {
   margin-left: auto; width: 22px; height: 22px; border-radius: 6px; color: var(--ink-4);
   display: grid; place-items: center; opacity: 0; transition: opacity var(--t-fast), background var(--t-fast);
@@ -423,10 +444,15 @@ kbd {
     transform var(--t-fast);
 }
 .card:hover { background: var(--card-hi); border-color: var(--line); }
+/* Deadline coloring — calm border tint; red wash only for overdue (DESIGN: colour = urgency). */
+.card.due-soon, .card.due-today { border-color: color-mix(in oklch, var(--due) 40%, var(--line)); }
+.card.due-soon:hover, .card.due-today:hover { border-color: color-mix(in oklch, var(--due) 55%, var(--line)); }
+.card.due-overdue { border-color: color-mix(in oklch, var(--hot) 55%, var(--line)); background: color-mix(in oklch, var(--hot) 7%, var(--card)); }
+.card.due-overdue:hover { border-color: color-mix(in oklch, var(--hot) 70%, var(--line)); background: color-mix(in oklch, var(--hot) 10%, var(--card-hi)); }
 .card-title { font-size: 1rem; line-height: 1.4; letter-spacing: -0.006em; color: var(--ink); text-wrap: pretty; }
 .card-foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 
-.due { font: 0.8rem var(--mono); color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.due { font: 0.8rem var(--mono); color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .due::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-2); }
 .due.soon { color: var(--due); }
 .due.soon::before { background: var(--due); }
@@ -435,32 +461,8 @@ kbd {
 .due.cool { color: var(--ink-4); }
 .due.cool::before { background: var(--ink-4); }
 
-.cmt { font: 0.8rem var(--mono); color: var(--ink-4); display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.cmt { font: 0.8rem var(--mono); color: var(--ink-4); display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; white-space: nowrap; margin-left: auto; }
 .cmt svg { width: 14px; height: 14px; }
-
-.adv {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 30px;
-  padding: 0 11px 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: oklch(1 0 0 / 0.03);
-  color: var(--ink-2);
-  font-size: 0.84rem;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
-}
-.adv:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 650; }
-.adv:hover .nx { color: var(--accent-ink); }
-.adv svg { width: 14px; height: 14px; }
-.adv .nx { color: var(--ink-3); }
-
-.done-chip { font: 0.8rem var(--mono); color: var(--done); display: inline-flex; align-items: center; gap: 6px; }
-.done-chip svg { width: 14px; height: 14px; }
 
 /* focused card */
 .card.focus {
@@ -469,22 +471,6 @@ kbd {
   box-shadow: 0 0 0 1px var(--accent), 0 0 0 6px var(--accent-ghost),
     0 14px 30px -18px oklch(0 0 0 / 0.85);
 }
-.card.focus .adv { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 650; }
-.card.focus .adv .nx { color: var(--accent-ink); }
-.card .key-hint {
-  position: absolute;
-  top: -11px;
-  right: 13px;
-  display: none;
-  align-items: center;
-  gap: 6px;
-  font: 0.7rem var(--mono);
-  color: var(--accent);
-  background: var(--panel);
-  padding: 0 5px;
-  border-radius: 5px;
-}
-.card.focus .key-hint { display: inline-flex; }
 
 /* drag states */
 .card.dragging { opacity: 0.25; }
@@ -682,7 +668,8 @@ kbd {
 @keyframes sheet { from { opacity: 0; transform: translate(-50%, calc(-50% + 10px)) scale(0.99); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 .detail-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line-soft); background: var(--panel-hi); }
 .crumb { display: flex; align-items: center; gap: 8px; font: 0.8rem var(--mono); color: var(--ink-3); }
-.crumb .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); }
+.crumb .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); }
+.crumb .dot.soon { background: var(--due); }
 .crumb .dot.hot { background: var(--hot); }
 .crumb b { color: var(--ink-2); font-weight: 500; }
 .crumb .sep { color: var(--ink-4); }
@@ -710,20 +697,66 @@ kbd {
 .field { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--col); font-size: 0.86rem; color: var(--ink-2); }
 .field svg { width: 15px; height: 15px; color: var(--ink-3); }
 .field.due-hot { color: var(--hot); } .field.due-hot svg { color: var(--hot); }
+.field.due-soon { color: var(--due); } .field.due-soon svg { color: var(--due); }
 .field .lbl { color: var(--ink-4); font: 0.74rem var(--mono); }
 .meta-spacer { flex: 1; }
 .due-field { position: relative; cursor: pointer; }
 .due-field:hover { border-color: var(--line); color: var(--ink); }
 .due-field .due-text { color: inherit; }
-.due-field input[type="date"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; margin: 0; cursor: pointer; }
 .due-clear { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; color: var(--ink-4); margin-left: 2px; position: relative; z-index: 1; }
 .due-clear:hover { background: oklch(1 0 0 / 0.06); color: var(--ink-2); }
 .due-clear svg { width: 12px; height: 12px; }
 .advance-btn { display: inline-flex; align-items: center; gap: 9px; height: 38px; padding: 0 15px 0 16px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-weight: 650; font-size: 0.94rem; box-shadow: 0 3px 14px -4px var(--accent-2); transition: background var(--t-fast); }
 .advance-btn:hover { background: oklch(0.83 0.095 73); }
 .advance-btn svg { width: 16px; height: 16px; }
+.advance-btn .adv-next { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .advance-btn kbd { background: oklch(0 0 0 / 0.16); color: var(--accent-ink); border-color: oklch(0 0 0 / 0.2); }
 .advance-btn.is-last { background: var(--col); color: var(--ink-3); border: 1px solid var(--line); box-shadow: none; cursor: default; }
+
+/* ============================ Date picker ============================ */
+.cal-pop {
+  position: fixed;
+  z-index: var(--z-popover);
+  width: 268px;
+  background: var(--panel-hi);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--sh-pop);
+  padding: 12px;
+  animation: pop var(--t-fast) var(--ease-out);
+}
+.cal-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.cal-title { flex: 1; text-align: center; font: 0.84rem var(--mono); color: var(--ink); letter-spacing: 0.02em; }
+.cal-nav {
+  width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: var(--ink-3);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.cal-nav:hover { background: var(--card); color: var(--ink); }
+.cal-nav svg { width: 16px; height: 16px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-wd {
+  font: 0.64rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-4); text-align: center; padding-bottom: 6px;
+}
+.cal-day {
+  height: 32px; border-radius: 7px; display: grid; place-items: center;
+  font: 0.82rem var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.cal-day:hover { background: var(--card-hi); color: var(--ink); }
+.cal-day.other { color: var(--ink-4); }
+.cal-day.today { color: var(--accent); font-weight: 650; }
+.cal-day.cursor { box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 3px var(--accent-ghost); }
+.cal-day.selected,
+.cal-day.selected:hover { background: var(--accent); color: var(--accent-ink); font-weight: 650; }
+.cal-foot { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.cal-foot-btn {
+  flex: 1; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--col);
+  font: 0.78rem var(--mono); color: var(--ink-2);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.cal-foot-btn:hover { background: var(--card); color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .cal-pop { animation: none; } }
 
 .section { margin-top: 6px; }
 .section-h { font: 0.74rem var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-4); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }

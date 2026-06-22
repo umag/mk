@@ -43,6 +43,7 @@ function inject(wrap: HTMLElement, columnId: string) {
   if (wrap.querySelector(".capture-row")) return;
 
   const input = el("input", {
+    data: { testid: "capture-input" },
     attrs: { type: "text", placeholder: "Capture a thought…", "aria-label": "New card title", autocomplete: "off" },
   });
   const row = el("div", { class: "capture-row" }, svg(icons.plus), input);

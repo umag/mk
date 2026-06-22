@@ -16,7 +16,7 @@ import { initCapture, startCapture } from "./capture";
 import { initKeyboard } from "./keyboard";
 import { initToast, toast } from "./toast";
 import { openDetail, closeDetail } from "./detail";
-import { openPalette, closePalette } from "./palette";
+import { closePalette, exitArchive, openPalette } from "./palette";
 import { playSound, toggleMute } from "./sound";
 import { enqueueOp, loadWorkspace, onSynced, onSyncStatus, pushSnapshot, setSyncEnabled } from "./sync/client";
 import type { ID } from "./types";
@@ -52,18 +52,24 @@ function buildShell() {
       el("span", { class: "brand-name", html: "may·<em>kaiten</em>" }),
       el("span", { class: "brand-sub", text: "~/canvas/personal" }),
       el("span", { class: "sync-dot", attrs: { title: "Offline — in-memory only", "aria-hidden": "true" } }),
+      el("button", {
+        class: "archive-back",
+        attrs: { title: "Back to canvas (Esc)", "aria-label": "Back to canvas" },
+        style: { display: "none" } as Record<string, string>,
+        on: { click: () => exitArchive() },
+      }, svg(icons.chevronLeft), "Canvas"),
     ),
     el("div", { class: "topbar-spacer" }),
     el(
       "button",
-      { class: "btn btn-primary", on: { click: () => newCardQuick() } },
+      { class: "btn btn-primary", data: { testid: "new-card-button" }, on: { click: () => newCardQuick() } },
       svg(icons.plus),
       "New card",
       el("kbd", { text: "N" }),
     ),
     el(
       "button",
-      { class: "btn cmd-trigger", on: { click: () => openPalette() } },
+      { class: "btn cmd-trigger", data: { testid: "command-trigger" }, on: { click: () => openPalette() } },
       svg(icons.search),
       "Search or run a command",
       el("span", { class: "gap" }),
@@ -72,11 +78,11 @@ function buildShell() {
     el(
       "div",
       { class: "zoom" },
-      el("button", { attrs: { "aria-label": "Zoom out" }, text: "−", on: { click: () => nudgeZoom(-1) } }),
-      el("span", { class: "lvl", text: "100%", on: { click: () => setZoom(1) } }),
-      el("button", { attrs: { "aria-label": "Zoom in" }, text: "+", on: { click: () => nudgeZoom(1) } }),
+      el("button", { data: { testid: "zoom-out" }, attrs: { "aria-label": "Zoom out" }, text: "−", on: { click: () => nudgeZoom(-1) } }),
+      el("span", { class: "lvl", data: { testid: "zoom-level" }, text: "100%", on: { click: () => setZoom(1) } }),
+      el("button", { data: { testid: "zoom-in" }, attrs: { "aria-label": "Zoom in" }, text: "+", on: { click: () => nudgeZoom(1) } }),
     ),
-    el("button", { class: "btn icon-btn mute-btn", attrs: { "aria-label": "Toggle sounds", title: "Sounds (M)" }, on: { click: toggleMuteUI } }, svg(icons.sound)),
+    el("button", { class: "btn icon-btn mute-btn", data: { testid: "mute-button" }, attrs: { "aria-label": "Toggle sounds", title: "Sounds (M)" }, on: { click: toggleMuteUI } }, svg(icons.sound)),
     el("div", { class: "avatar", attrs: { "aria-hidden": "true" } }),
   );
 
@@ -210,11 +216,15 @@ async function boot() {
     else seedServer = true;
   }
 
+  // The hidden Archive board + auto-archive of cards long-done (≥10 days).
+  store.ensureArchiveBoard();
+  store.archiveDoneCards();
+
   renderWorld();
   initCanvas();
 
-  // anchor: pin the first board near the top-left corner of the canvas
-  const b0 = store.world.boards[0];
+  // anchor: pin the first real (non-archive) board near the top-left corner
+  const b0 = store.world.boards.find((b) => b.id !== "archive");
   if (b0) { store.view.panX = 24 - b0.x; store.view.panY = 20 - b0.y; }
   applyTransform();
 
@@ -223,6 +233,9 @@ async function boot() {
   initKeyboard();
 
   if (seedServer) void pushSnapshot(store.world); // first run: seed the empty server
+
+  // Long sessions: re-run the sweep hourly so cards archive without a reload.
+  setInterval(() => store.archiveDoneCards(), 60 * 60 * 1000);
 }
 
 function updateSyncDot(online: boolean) {

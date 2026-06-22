@@ -15,14 +15,18 @@ interface Item {
 }
 const SEP: Item = { label: "—", icon: "more", run: () => {} };
 
+// Stable testid per action, derived from the label ("Delete card" → menu-item-delete-card).
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
 function showAt(x: number, y: number, items: Item[]) {
   closeMenu();
-  const menu = el("div", { class: "menu", attrs: { role: "menu" } });
+  const menu = el("div", { class: "menu", data: { testid: "context-menu" }, attrs: { role: "menu" } });
   for (const it of items) {
     if (it.label === "—") { menu.appendChild(el("div", { class: "menu-sep" })); continue; }
     menu.appendChild(
       el("button", {
         class: `menu-item${it.danger ? " danger" : ""}`,
+        data: { testid: `menu-item-${slug(it.label)}` },
         attrs: { role: "menuitem" },
         on: { click: () => { it.run(); closeMenu(); } },
       },
@@ -82,7 +86,6 @@ export function columnMenu(board: Board, column: Column, anchor: HTMLElement) {
   const idx = board.columns.findIndex((c) => c.id === column.id);
   fromAnchor(anchor, [
     { label: "Add card", icon: "plus", kbd: "N", run: () => ctx.startCapture(column.id) },
-    { label: "Rename column", icon: "column", run: () => ctx.requestColumnRename(column.id) },
     { label: "Insert column right", icon: "plus", run: () => { const c = ctx.store.addColumnAt(board.id, idx + 1); if (c) ctx.requestColumnRename(c.id); } },
     SEP,
     { label: "Delete column", icon: "trash", danger: true, run: () => {
@@ -106,7 +109,7 @@ export function cardMenu(card: Card, x: number, y: number) {
 function renameBoardInline(board: Board) {
   const h2 = ctx.world.querySelector<HTMLElement>(`[data-board-title="${board.id}"]`);
   if (!h2) return;
-  const input = el("input", { class: "rename-input", attrs: { value: board.title, "aria-label": "Rename board" } });
+  const input = el("input", { class: "rename-input", data: { testid: "board-rename-input" }, attrs: { value: board.title, "aria-label": "Rename board" } });
   input.style.fontFamily = "var(--serif)";
   input.style.fontSize = "1.32rem";
   h2.replaceWith(input);

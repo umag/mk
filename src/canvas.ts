@@ -1,6 +1,7 @@
 import { ctx } from "./context";
 import { reduceMotion } from "./flip";
 import { type Rect, sceneBounds, clampPan } from "./canvas-bounds";
+import { originOf } from "./board-layout";
 
 const GRID = 28;
 const ZOOM_MIN = 0.4;
@@ -54,8 +55,10 @@ function isTyping(t: EventTarget | null): boolean {
 
 export function applyTransform() {
   const view = ctx.store.view;
-  // BOUNDED canvas: clamp the pan to the board extents so it can't drift into void.
-  const scene = sceneBounds(boardRectsNow(), SCENE_MARGIN);
+  // BOUNDED canvas: clamp the pan to the board extents so it can't drift into
+  // void. The anchor's top-left is a hard border (no margin above/left of it).
+  const rects = boardRectsNow();
+  const scene = sceneBounds(rects, SCENE_MARGIN, originOf(rects));
   const clamped = clampPan(
     { x: view.panX, y: view.panY },
     view.zoom,
