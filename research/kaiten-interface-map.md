@@ -1,6 +1,6 @@
 # Kaiten — Interface Map (live walkthrough)
 
-> Every surface of `aopab.kaiten.ru` (space 36022), explored with Playwright on
+> Every surface of a live Kaiten instance, explored with Playwright on
 > 2026-06-22. Russian labels quoted verbatim with English glosses; real `data-testid`s
 > noted as `tid:`. Screenshots live in `research/.scratch/ui-*.png` (gitignored).
 > This is the map of what Kaiten *has*; micro-kaiten implements a small, opinionated subset.

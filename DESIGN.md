@@ -301,7 +301,7 @@ paths the maker does. Borrowed from Kaiten's clean DOM contract (`research/kaite
 
 ## Validated against Kaiten (live app, 2026-06-22)
 
-The system was checked against the category leader — `aopab.kaiten.ru`, driven live and
+The system was checked against the category leader — a live Kaiten instance, driven and
 captured in `research/`. The findings *confirmed* the direction rather than redirecting it:
 
 - **The dark warm canvas is right.** Kaiten's real product ships a near-black warm-charcoal

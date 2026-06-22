@@ -3,16 +3,22 @@
 [![CI](https://github.com/umag/mk/actions/workflows/ci.yml/badge.svg)](https://github.com/umag/mk/actions/workflows/ci.yml)
 [![Release](https://github.com/umag/mk/actions/workflows/release.yml/badge.svg)](https://github.com/umag/mk/actions/workflows/release.yml)
 [![Docker Hub](https://img.shields.io/docker/v/umagistr/mk?sort=date&label=docker%20hub)](https://hub.docker.com/r/umagistr/mk)
+[![Sponsor](https://img.shields.io/github/sponsors/umag?label=Sponsor&logo=GitHub&color=ea4aaa)](https://github.com/sponsors/umag)
+[![Patreon](https://img.shields.io/badge/Patreon-Support-f96854?logo=patreon&logoColor=white)](https://www.patreon.com/_Magistr_)
 
 A self-hosted **personal kanban canvas**: many boards laid out in one spatial
 area instead of one board at a time. Capture a thought in a keystroke, advance it
 one column at a time, pan across the canvas. Single-user, no accounts, no cloud —
 a small Deno + SQLite backend and a dependency-light Vite/TS frontend.
 
+If micro-kaiten is useful to you, please consider supporting its maintenance via
+[**❤️ GitHub Sponsors**](https://github.com/sponsors/umag) or
+[**Patreon**](https://www.patreon.com/_Magistr_).
+
 ![micro-kaiten — the spatial board canvas](docs/screenshot.png)
 
-> Named for [Kaiten](https://kaiten.ru)'s calm multi-board restraint, reinterpreted
-> as its own thing. See [`DESIGN.md`](DESIGN.md) and [`PRODUCT.md`](PRODUCT.md).
+> A calm, spatial take on the multi-board kanban idea. See [`DESIGN.md`](DESIGN.md)
+> and [`PRODUCT.md`](PRODUCT.md).
 
 ## Highlights
 

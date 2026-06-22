@@ -1,6 +1,6 @@
 # micro-kaiten — Kaiten-informed evolution roadmap
 
-> Derived from `research/` (kaiten.ru study) filtered through PRODUCT.md / DESIGN.md.
+> Derived from `research/` (Kaiten study) filtered through PRODUCT.md / DESIGN.md.
 > One umbrella, six slices. Each slice is a sibling issue under
 > `micro-kaiten-kaiten-evolution`; **checklists** is the chosen first slice and has a
 > full review-hardened plan (in the issue model, planVersion 3). The rest are scoped

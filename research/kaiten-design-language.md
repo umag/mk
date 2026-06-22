@@ -1,6 +1,6 @@
 # Kaiten — Design Language & Philosophy (scraped reference)
 
-> Source: kaiten.ru (homepage + product blog), scraped 2026-06-22. Kaiten is the
+> Source: the Kaiten homepage + product blog, scraped 2026-06-22. Kaiten is the
 > Russian Kanban/work-management SaaS that `PRODUCT.md` names as the positive
 > reference — "its calm multi-board restraint and clean card density are the bar to
 > clear." This document captures *their* language so we can reinterpret it as ours,
@@ -113,8 +113,8 @@ Our spatial canvas collapses this: one space, many boards laid out in 2D.
 
 ## 8. Live app observations (authenticated — the real product)
 
-Driven with Playwright into `aopab.kaiten.ru` space 36022 ("Обустройство квартиры")
-on 2026-06-22. This is the actual running UI, not marketing:
+Driven with Playwright into a live Kaiten instance on 2026-06-22. This is the
+actual running UI, not marketing:
 
 - **The product ships a dark theme, and it's good.** Near-black warm charcoal canvas,
   dark-gray cards, light text — the same register as our Night Editorial theme. Strong

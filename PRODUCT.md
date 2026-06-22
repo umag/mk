@@ -53,7 +53,7 @@ feeling better to use than anything it replaces.
   color (the old vermillion read as an alarm — rejected), tiny cramped type, anything that
   makes capturing or advancing slower than it has to be.
 
-Positive reference (not an anti-reference): **kaiten.ru** — its calm multi-board restraint and
+Positive reference (not an anti-reference): **Kaiten** — its calm multi-board restraint and
 clean card density are the bar to clear, reinterpreted as our own thing.
 
 ## Design Principles

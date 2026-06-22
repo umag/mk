@@ -1,6 +1,6 @@
 # Kaiten — Frontend / Code Reference (scraped from the live app)
 
-> Extracted by driving `aopab.kaiten.ru` with Playwright on 2026-06-22 and reading the
+> Extracted by driving a live Kaiten instance with Playwright on 2026-06-22 and reading the
 > live DOM, computed styles, CSS custom properties, loaded fonts and asset manifest.
 > This is *reference* for building micro-kaiten — Kaiten's stack and tokens, with the
 > deliberate ways micro-kaiten diverges noted. All values are real, read off the running app.
@@ -13,7 +13,7 @@
 | Component lib | **MUI (Material-UI)** | `MuiButtonBase-root MuiButton-outlined MuiButton-colorGrey …` |
 | Styling | **Emotion** (CSS-in-JS) + atomic classes | `style[data-emotion="app-emotion-styles …"]`, hashed `v5-v5xxx` classes |
 | Fonts | **Roboto** 400/500 loaded (100–900 declared), fallback Helvetica/Arial | `document.fonts`; `font-family: Roboto, Helvetica, Arial, sans-serif` |
-| Build/CDN | webpack-style **hashed bundles** on a static CDN | `cdn-static-files.kaiten.ru/static/hashed/{manifest,lib,main,<chunk>}.<hash>.{js,css}` |
+| Build/CDN | webpack-style **hashed bundles** on a static CDN | `…/static/hashed/{manifest,lib,main,<chunk>}.<hash>.{js,css}` |
 | 3rd-party | Dropbox dropins, Google APIs, CloudPayments | `<script src>` list |
 | App version | Kaiten **58.39.0** | login footer |
 
