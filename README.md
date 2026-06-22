@@ -21,9 +21,13 @@ a small Deno + SQLite backend and a dependency-light Vite/TS frontend.
 - **Capture + advance** as the only first-class acts — keyboard-first throughout
   (`N` new · `A` advance · `J/K` move · `⌘K` palette · `/` search).
 - **Calm, deadline-aware cards** — title, optional date (coloured by deadline), comment count.
+- **Paste a link** — the card titles itself from the page; the URL drops into notes. Works for
+  articles (`og:title`/`<title>`) and **YouTube** (via oEmbed). Existing URL-titled cards backfill.
 - **Bespoke date picker**, inline column rename, card-detail sheet with notes + comments.
 - **Hidden Archive** — cards done ≥ 10 days auto-move there (swept server-side, headless).
 - **REST API** for external card/board/column management — see [`server/API.md`](server/API.md).
+
+![Paste a YouTube or article link and the card titles itself](docs/screenshot-links.png)
 
 ## Run with Docker
 
