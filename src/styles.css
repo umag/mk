@@ -389,18 +389,22 @@ kbd {
 /* capture input lives at the top of a column */
 .capture-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
   min-height: 44px;
-  padding: 0 12px;
+  padding: 11px 12px;
   border: 1px solid var(--accent);
   border-radius: var(--rc);
   background: var(--card);
   box-shadow: 0 0 0 4px var(--accent-ghost);
 }
-.capture-row svg { width: 15px; height: 15px; color: var(--accent); flex: none; }
-.capture-row input { flex: 1; background: none; border: none; outline: none; color: var(--ink); font-size: 0.95rem; }
-.capture-row input::placeholder { color: var(--ink-4); }
+.capture-row svg { width: 15px; height: 15px; color: var(--accent); flex: none; margin-top: 3px; }
+.capture-row textarea {
+  flex: 1; background: none; border: none; outline: none; color: var(--ink);
+  font-family: var(--sans); font-size: 0.95rem; line-height: 1.35;
+  resize: none; overflow: hidden; padding: 0; margin: 0; display: block;
+}
+.capture-row textarea::placeholder { color: var(--ink-4); }
 
 /* whole-column drop target while dragging a card */
 .column.drop-target { background: var(--accent-ghost-2); box-shadow: inset 0 0 0 1px var(--accent-ghost); border-radius: var(--rc); }

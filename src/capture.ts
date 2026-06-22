@@ -1,4 +1,4 @@
-import { el, isUrl, svg } from "./dom";
+import { autoGrow, el, isUrl, svg } from "./dom";
 import { icons } from "./icons";
 import { ctx } from "./context";
 import { afterRender, updateFocusRing } from "./render";
@@ -69,10 +69,11 @@ function inject(wrap: HTMLElement, columnId: string) {
   try { wrap.querySelector(".col-add")?.remove(); } catch { /* already detached */ }
   if (wrap.querySelector(".capture-row")) return;
 
-  const input = el("input", {
+  const input = el("textarea", {
     data: { testid: "capture-input" },
-    attrs: { type: "text", placeholder: "Capture a thought…", "aria-label": "New card title", autocomplete: "off" },
+    attrs: { rows: "1", placeholder: "Capture a thought…", "aria-label": "New card title", autocomplete: "off" },
   });
+  autoGrow(input); // wrap onto more lines instead of scrolling for long titles
   const row = el("div", { class: "capture-row" }, svg(icons.plus), input);
 
   input.addEventListener("keydown", (e) => {
