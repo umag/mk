@@ -1,5 +1,9 @@
 # mk — micro-kaiten
 
+[![CI](https://github.com/umag/mk/actions/workflows/ci.yml/badge.svg)](https://github.com/umag/mk/actions/workflows/ci.yml)
+[![Publish to Docker Hub](https://github.com/umag/mk/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/umag/mk/actions/workflows/docker-publish.yml)
+[![Docker Hub](https://img.shields.io/docker/v/umagistr/mk?sort=semver&label=docker%20hub)](https://hub.docker.com/r/umagistr/mk)
+
 A self-hosted **personal kanban canvas**: many boards laid out in one spatial
 area instead of one board at a time. Capture a thought in a keystroke, advance it
 one column at a time, pan across the canvas. Single-user, no accounts, no cloud —
@@ -28,6 +32,12 @@ One container (Deno serves the API **and** the built frontend on port 8787):
 ```bash
 docker compose up --build
 # → open http://localhost:8787
+```
+
+Or pull the published image (built & pushed by CI to Docker Hub):
+
+```bash
+docker run -p 8787:8787 -v mk-data:/data umagistr/mk
 ```
 
 The SQLite database persists in the `mk-data` volume (`/data/mk.db`). Override the
