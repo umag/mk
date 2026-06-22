@@ -1,7 +1,8 @@
 import type { Board, Card, Column, ID, ViewState, WorldState } from "./types";
 import type { Op } from "./core/ops";
 import { applyOp, type CardLoc, findBoard, findCard, findColumn, nextColumnOf } from "./core/state";
-import { ARCHIVE_AFTER_MS, ARCHIVE_BOARD_ID, ARCHIVE_COLUMN_ID, isDoneColumn } from "./core/done";
+import { ARCHIVE_BOARD_ID } from "./core/done";
+import { archiveBoardObject, archiveSweepOps } from "./core/archive";
 import { uid } from "./dom";
 
 /**
@@ -169,35 +170,17 @@ export class Store {
   /** Create the hidden Archive board once (idempotent; safe for existing data). */
   ensureArchiveBoard(): void {
     if (this.findBoard(ARCHIVE_BOARD_ID)) return;
-    const board: Board = {
-      id: ARCHIVE_BOARD_ID,
-      title: "Archive",
-      x: 40,
-      y: 40,
-      columns: [{ id: ARCHIVE_COLUMN_ID, name: "Archived", wip: null, cards: [] }],
-    };
-    this.commit({ t: "addBoard", board });
+    this.commit({ t: "addBoard", board: archiveBoardObject() });
   }
 
   /**
    * Move every card that has sat in a done column for ≥ the threshold into the
-   * Archive. Reuses the moveCard op, so it persists and replays like any edit.
-   * Returns how many were archived.
+   * Archive (shared planner with the server). Returns how many were archived.
    */
   archiveDoneCards(now = Date.now()): number {
-    this.ensureArchiveBoard();
-    const ids: ID[] = [];
-    for (const b of this.world.boards) {
-      if (b.id === ARCHIVE_BOARD_ID) continue;
-      b.columns.forEach((col, i) => {
-        if (!isDoneColumn(b, i)) return;
-        for (const c of col.cards) {
-          if (now - c.enteredColumnAt >= ARCHIVE_AFTER_MS) ids.push(c.id);
-        }
-      });
-    }
-    for (const id of ids) this.commit({ t: "moveCard", id, toColumnId: ARCHIVE_COLUMN_ID, index: 0, at: now });
-    return ids.length;
+    const ops = archiveSweepOps(this.world, now);
+    for (const op of ops) this.commit(op);
+    return ops.reduce((n, op) => n + (op.t === "moveCard" ? 1 : 0), 0);
   }
 }
 
