@@ -71,6 +71,18 @@ export async function loadWorkspace(): Promise<WorldState | null> {
   }
 }
 
+/** Ask the server to fetch a URL's page title (server-side, to dodge CORS). */
+export async function unfurl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API}/unfurl?url=${encodeURIComponent(url)}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { title?: string | null };
+    return data.title ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Seed the server with the current world (used when the server starts empty). */
 export async function pushSnapshot(world: WorldState): Promise<boolean> {
   try {

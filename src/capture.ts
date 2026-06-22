@@ -1,11 +1,33 @@
-import { el, svg } from "./dom";
+import { el, isUrl, svg } from "./dom";
 import { icons } from "./icons";
 import { ctx } from "./context";
 import { afterRender, updateFocusRing } from "./render";
 import { playSound } from "./sound";
+import { unfurl } from "./sync/client";
 
 let activeColumnId: string | null = null;
 let suppressBlur = false;
+
+/**
+ * Add a card and focus it. When the text is a pasted link, drop the URL into the
+ * notes immediately and fetch the page title in the background to become the card
+ * title (falls back to leaving the URL as the title if the fetch yields nothing).
+ */
+function commitCard(columnId: string, val: string) {
+  const card = ctx.store.addCard(columnId, val, true);
+  if (!card) return;
+  ctx.store.view.focusedCardId = card.id;
+  updateFocusRing();
+  playSound("add");
+  if (isUrl(val)) {
+    // Defer the URL→notes (and fetched title) to the async unfurl result, so we
+    // don't fire a second synchronous rerender inside the capture keydown — that
+    // races the capture-input reapply and throws before unfurl is even called.
+    unfurl(val).then((title) => {
+      ctx.store.updateCard(card.id, title ? { notes: val, title } : { notes: val });
+    });
+  }
+}
 
 export function initCapture() {
   // re-inject the live input after every re-render so capture survives card adds
@@ -39,7 +61,9 @@ function reapply() {
 
 function inject(wrap: HTMLElement, columnId: string) {
   suppressBlur = false;
-  wrap.querySelector(".col-empty")?.remove();
+  // Guarded: a concurrent re-render (e.g. an async unfurl title update) can
+  // detach this node first — removing it again throws otherwise.
+  try { wrap.querySelector(".col-empty")?.remove(); } catch { /* already detached */ }
   if (wrap.querySelector(".capture-row")) return;
 
   const input = el("input", {
@@ -55,12 +79,7 @@ function inject(wrap: HTMLElement, columnId: string) {
       if (!val) { stopCapture(); return; }
       suppressBlur = true;
       input.value = "";
-      const card = ctx.store.addCard(columnId, val, true); // → rerender → reapply (fresh input on top)
-      if (card) {
-        ctx.store.view.focusedCardId = card.id; // focus the new card
-        updateFocusRing();
-        playSound("add");
-      }
+      commitCard(columnId, val); // → rerender → reapply (fresh input on top)
     } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -73,12 +92,8 @@ function inject(wrap: HTMLElement, columnId: string) {
     const val = input.value.trim();
     const col = activeColumnId;
     activeColumnId = null;
-    if (val && col) {
-      const card = ctx.store.addCard(col, val, true);
-      if (card) { ctx.store.view.focusedCardId = card.id; updateFocusRing(); playSound("add"); }
-    } else {
-      ctx.rerender();
-    }
+    if (val && col) commitCard(col, val);
+    else ctx.rerender();
   });
 
   wrap.prepend(row);

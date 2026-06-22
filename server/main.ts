@@ -89,6 +89,45 @@ function formatNow(): string {
   return `${month} ${d.getDate()}, ${hh}:${mm}`;
 }
 
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&#x27;/gi, "'").replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
+}
+
+function extractTitle(html: string): string | null {
+  const og = html.match(/<meta[^>]+property=["']og:title["'][^>]*content=["']([^"']+)["']/i)
+    ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
+  const tt = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const raw = (og?.[1] ?? tt?.[1] ?? "").trim();
+  return raw ? (decodeEntities(raw).replace(/\s+/g, " ").trim() || null) : null;
+}
+
+/** Fetch a URL and pull its title (og:title, else <title>). Null on any failure. */
+async function fetchTitle(url: string): Promise<string | null> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 6000);
+  try {
+    const res = await fetch(url, {
+      signal: ctl.signal,
+      redirect: "follow",
+      headers: { "user-agent": "Mozilla/5.0 (compatible; micro-kaiten/1.0; +link-unfurl)", "accept": "text/html,application/xhtml+xml" },
+    });
+    if (!res.ok || !(res.headers.get("content-type") ?? "").includes("text/html")) {
+      await res.body?.cancel();
+      return null;
+    }
+    const html = (await res.text()).slice(0, 524_288); // cap at 512 KB
+    return extractTitle(html);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Move long-done cards into the Archive. Runs headless — no browser required. */
 function sweepArchive(): void {
   // Safety: never write on an empty world (a fresh/unseeded DB, or a transient
@@ -154,6 +193,13 @@ Deno.serve({ port: PORT }, async (req) => {
       applyOps(state, ops);
       saveAll(db, state);
       return json({ ok: true, applied: ops.length });
+    }
+
+    // ---- unfurl: fetch a page's <title> server-side (browsers can't, due to CORS) ----
+    if (parts[1] === "unfurl" && parts.length === 2 && method === "GET") {
+      const target = searchParams.get("url") ?? "";
+      if (!/^https?:\/\//i.test(target)) return json({ error: "http(s) url required" }, 400);
+      return json({ url: target, title: await fetchTitle(target) });
     }
 
     // ---- REST card API (external use: server mints ids + timestamps) ----

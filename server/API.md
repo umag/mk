@@ -115,6 +115,20 @@ since it's managed automatically.
 
 ---
 
+## Link unfurl
+
+| Method | Path | Result |
+|---|---|---|
+| `GET` | `/api/unfurl?url=<http(s) url>` | `{ url, title }` — the page's `og:title` or `<title>` |
+
+Fetched **server-side** (browsers can't read cross-origin `<title>` due to CORS),
+with a 6s timeout, `text/html` only, body capped at 512 KB. `title` is `null` on
+any failure (timeout, non-HTML, bot-gated page) — callers fall back to the URL.
+The app uses this when you create a card from a pasted link: the card appears
+immediately with the URL as its title and in its notes, then the title swaps to
+the fetched page title. Existing cards whose title is a bare URL are backfilled
+the same way on load.
+
 ## Low-level endpoints
 
 The REST routes above are sugar over these, which the app itself uses for sync:

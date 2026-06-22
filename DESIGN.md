@@ -178,7 +178,9 @@ selected. Same shape, same vocabulary everywhere.
 - **New card / quick capture** *(top-priority action)* — global `N` and the top-bar button both
   open capture instantly. Each board's first column carries an always-visible **quick-add**
   input; when active it gets the accent ring + blinking caret, and **stays focused after submit**
-  so you can capture in a burst.
+  so you can capture in a burst. **Paste a link** and the card appears at once with the URL as
+  title + notes, then its title swaps to the fetched page title (server-side unfurl; falls back
+  to the URL). Existing URL-titled cards are backfilled the same way on load.
 - **Board** — panel with a header (Fraunces title, mono `flow` like `backlog → doing → done`,
   count) over a row of columns.
 - **Column** — mono uppercase label + count, optional `WIP n` chip; completed column label uses

@@ -70,6 +70,9 @@ export function svg(markup: string, cls?: string): SVGElement {
 // Match http(s) URLs, stopping before trailing punctuation so "(see https://x.y)" works.
 const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]}'"])/g;
 
+/** True when the whole string is a single http(s) URL (a pasted link). */
+export const isUrl = (s: string): boolean => /^https?:\/\/\S+$/i.test(s.trim());
+
 /**
  * Turn a plain string into text nodes + clickable <a> for any http(s) URLs.
  * The anchors stop pointerdown/click from reaching the card (no drag, no

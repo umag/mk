@@ -3,7 +3,7 @@ import "@fontsource-variable/fraunces";
 import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
 
-import { clear, el, svg } from "./dom";
+import { clear, el, isUrl, svg } from "./dom";
 import { icons } from "./icons";
 import { ctx } from "./context";
 import { Store } from "./store";
@@ -18,7 +18,7 @@ import { initToast, toast } from "./toast";
 import { openDetail, closeDetail } from "./detail";
 import { closePalette, exitArchive, openPalette } from "./palette";
 import { playSound, toggleMute } from "./sound";
-import { enqueueOp, loadWorkspace, onSynced, onSyncStatus, pushSnapshot, setSyncEnabled } from "./sync/client";
+import { enqueueOp, loadWorkspace, onSynced, onSyncStatus, pushSnapshot, setSyncEnabled, unfurl } from "./sync/client";
 import type { ID } from "./types";
 
 function buildShell() {
@@ -232,10 +232,35 @@ async function boot() {
   initCapture();
   initKeyboard();
 
+  // Backfill: cards whose title is still a bare URL get unfurled (title from the
+  // page, URL kept in notes). Needs the server's /api/unfurl, so only when online.
+  if (remote !== null) convertUrlCards(store);
+
   if (seedServer) void pushSnapshot(store.world); // first run: seed the empty server
 
   // Long sessions: re-run the sweep hourly so cards archive without a reload.
   setInterval(() => store.archiveDoneCards(), 60 * 60 * 1000);
+}
+
+/** One-time-ish backfill: any card whose title is a bare URL gets unfurled. */
+function convertUrlCards(store: Store) {
+  for (const b of store.world.boards) {
+    if (b.id === "archive") continue;
+    for (const col of b.columns) {
+      for (const c of col.cards) {
+        if (!isUrl(c.title)) continue;
+        const url = c.title.trim();
+        unfurl(url).then((title) => {
+          const loc = store.findCard(c.id);
+          if (!title || !loc || !isUrl(loc.card.title)) return; // skip if edited meanwhile
+          const notes = loc.card.notes.includes(url)
+            ? loc.card.notes
+            : url + (loc.card.notes ? "\n\n" + loc.card.notes : "");
+          store.updateCard(c.id, { title, notes });
+        });
+      }
+    }
+  }
 }
 
 function updateSyncDot(online: boolean) {
