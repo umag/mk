@@ -367,6 +367,25 @@ kbd {
 .col-empty:hover { border-color: var(--line); color: var(--ink-3); }
 .col-empty.drop-hot { border-color: var(--accent); color: var(--accent); background: var(--accent-ghost-2); }
 
+/* Bottom quick-add: hidden until the column is hovered (Kaiten-style). */
+.col-add {
+  width: 100%;
+  border: 1px dashed var(--line-soft);
+  border-radius: var(--rc);
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 0.84rem;
+  color: var(--ink-4);
+  text-align: left;
+  cursor: text;
+  opacity: 0;
+  transition: opacity var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+.column:hover .col-add,
+.col-add:focus-visible { opacity: 1; }
+.col-add:hover { border-color: var(--line); color: var(--ink-3); }
+@media (hover: none) { .col-add { opacity: 1; } } /* touch: always visible */
+
 /* capture input lives at the top of a column */
 .capture-row {
   display: flex;

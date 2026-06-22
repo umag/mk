@@ -7,6 +7,7 @@ import { unfurl } from "./sync/client";
 
 let activeColumnId: string | null = null;
 let suppressBlur = false;
+let captureAtTop = true; // false = quick-add at the bottom of the column (hover affordance)
 
 /**
  * Add a card and focus it. When the text is a pasted link, drop the URL into the
@@ -14,7 +15,7 @@ let suppressBlur = false;
  * title (falls back to leaving the URL as the title if the fetch yields nothing).
  */
 function commitCard(columnId: string, val: string) {
-  const card = ctx.store.addCard(columnId, val, true);
+  const card = ctx.store.addCard(columnId, val, captureAtTop);
   if (!card) return;
   ctx.store.view.focusedCardId = card.id;
   updateFocusRing();
@@ -34,7 +35,8 @@ export function initCapture() {
   afterRender.push(reapply);
 }
 
-export function startCapture(columnId: string) {
+export function startCapture(columnId: string, atTop = true) {
+  captureAtTop = atTop;
   activeColumnId = columnId;
   const wrap = cardsWrap(columnId);
   if (wrap) inject(wrap, columnId);
@@ -64,6 +66,7 @@ function inject(wrap: HTMLElement, columnId: string) {
   // Guarded: a concurrent re-render (e.g. an async unfurl title update) can
   // detach this node first — removing it again throws otherwise.
   try { wrap.querySelector(".col-empty")?.remove(); } catch { /* already detached */ }
+  try { wrap.querySelector(".col-add")?.remove(); } catch { /* already detached */ }
   if (wrap.querySelector(".capture-row")) return;
 
   const input = el("input", {
@@ -96,6 +99,7 @@ function inject(wrap: HTMLElement, columnId: string) {
     else ctx.rerender();
   });
 
-  wrap.prepend(row);
+  if (captureAtTop) wrap.prepend(row);
+  else wrap.append(row);
   input.focus();
 }

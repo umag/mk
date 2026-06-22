@@ -20,7 +20,7 @@ export interface Ctx {
   advance(id: ID, instant?: boolean): void;
   deleteCard(id: ID): void;
   requestColumnRename(columnId: ID): void;
-  startCapture(columnId: ID): void;
+  startCapture(columnId: ID, atTop?: boolean): void;
   openDetail(id: ID): void;
   closeDetail(): void;
   openPalette(): void;

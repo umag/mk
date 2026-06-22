@@ -193,6 +193,17 @@ function buildColumn(board: Board, column: Column, index: number): HTMLElement {
     );
   } else {
     column.cards.forEach((card) => cardWrap.appendChild(buildCard(card)));
+    // Kaiten-style: hover the column to reveal a quick-add at the bottom.
+    if (!archive) {
+      cardWrap.appendChild(
+        el("button", {
+          class: "col-add",
+          data: { colAdd: column.id, testid: "column-add-card" },
+          text: "+ Add a card",
+          on: { click: () => ctx.startCapture(column.id, false) }, // append at the bottom
+        }),
+      );
+    }
   }
 
   return el("section", { class: `column${done ? " is-done" : ""}`, data: { columnId: column.id, testid: "column" }, attrs: { "data-col-index": String(index) } }, head, cardWrap);

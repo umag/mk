@@ -13,7 +13,7 @@ export function initDnd() {
 function onDown(e: PointerEvent) {
   if (e.button !== 0) return;
   const target = e.target as HTMLElement;
-  if (target.closest("a, .adv, .board-menu, .col-menu, .col-empty, .rename-input, input, textarea, .capture-row")) return;
+  if (target.closest("a, .adv, .board-menu, .col-menu, .col-empty, .col-add, .rename-input, input, textarea, .capture-row")) return;
   if (ctx.viewport.classList.contains("space-ready")) return; // space-drag pans
 
   if (target.closest(".board-head")) return startBoardDrag(e, target.closest<HTMLElement>(".board-head")!);
