@@ -5,6 +5,8 @@ area instead of one board at a time. Capture a thought in a keystroke, advance i
 one column at a time, pan across the canvas. Single-user, no accounts, no cloud —
 a small Deno + SQLite backend and a dependency-light Vite/TS frontend.
 
+![micro-kaiten — the spatial board canvas](docs/screenshot.png)
+
 > Named for [Kaiten](https://kaiten.ru)'s calm multi-board restraint, reinterpreted
 > as its own thing. See [`DESIGN.md`](DESIGN.md) and [`PRODUCT.md`](PRODUCT.md).
 
