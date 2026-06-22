@@ -1,0 +1,43 @@
+# Mirror README.md to the Docker Hub repo description on every README change.
+name: Update Docker Hub Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "README.md"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Docker README (absolutize relative links & images)
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_BRANCH: ${{ github.ref_name }}
+          GH_SERVER: ${{ github.server_url }}
+        run: |
+          export REPO_URL="$GH_SERVER/$GH_REPO/tree/$GH_BRANCH"
+          export IMG_URL="$GH_SERVER/$GH_REPO/raw/$GH_BRANCH"
+          echo "Resolving links for $GH_REPO@$GH_BRANCH"
+
+          cp README.md README_DOCKER.md
+
+          # Images (![alt](path)) → raw URL; links ([text](path)) → tree URL.
+          # Skip absolute (http://, https://), root-relative (/…) and anchors (#…).
+          perl -0pi -e 's{(!\[[^\]]*\]\()(?!https?://|/|#)}{$1$ENV{IMG_URL}/}g' README_DOCKER.md
+          perl -0pi -e 's{(?<!!)(\[[^\]]*\]\()(?!https?://|/|#)}{$1$ENV{REPO_URL}/}g' README_DOCKER.md
+
+      - name: Push README to Docker Hub
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          repository: umagistr/mk
+          short-description: ${{ github.event.repository.description }}
+          readme-filepath: ./README_DOCKER.md

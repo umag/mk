@@ -1,8 +1,12 @@
 # Cut a calendar-versioned release: YYYY.MM.DD.N (N increments per day).
-# Builds & pushes umagistr/mk:<calver> + :latest, then creates a GitHub release.
+# Runs on every push to main (and on demand): builds & pushes
+# umagistr/mk:<calver> + :latest, then creates a GitHub release.
+# This is the ONLY image publisher — every release is CalVer, never a SHA tag.
 name: Release (CalVer)
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

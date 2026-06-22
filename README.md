@@ -54,10 +54,10 @@ The SQLite database persists in the `mk-data` volume (`/data/mk.db`). Override t
 port with `MK_PORT`. To build from source instead, uncomment `build: .` in
 `docker-compose.yml` (or `docker build -t mk .`).
 
-**Image tags** (`umagistr/mk`): `latest` = newest release · `edge` = newest `main`
-· `YYYY.MM.DD.N` = a specific [CalVer](https://calver.org) release (e.g.
-`2026.06.22.1`). Releases are cut with the **Release (CalVer)** workflow
-(`workflow_dispatch`), which builds the image and opens a GitHub release.
+**Image tags** (`umagistr/mk`): `latest` = newest release · `YYYY.MM.DD.N` = a
+specific [CalVer](https://calver.org) release (e.g. `2026.06.22.1`). Every push to
+`main` cuts a CalVer release via the **Release (CalVer)** workflow — there are no
+SHA-tagged images; each release builds the image and opens a matching GitHub release.
 
 ## Develop
 
