@@ -118,6 +118,22 @@ export function screenToWorld(sx: number, sy: number): { x: number; y: number } 
   return { x: (sx - r.left - panX) / zoom, y: (sy - r.top - panY) / zoom };
 }
 
+/**
+ * Pan the canvas by a screen-px delta, routed through applyTransform so the
+ * bounded-scene clamp (clampPan) still governs — auto-pan can never reveal void
+ * above/left of the anchor. Returns the delta actually applied after clamping,
+ * so a caller (edge auto-pan) can tell when an axis is pinned and stop pushing.
+ */
+export function panBy(dx: number, dy: number): { dx: number; dy: number } {
+  const v = ctx.store.view;
+  const beforeX = v.panX;
+  const beforeY = v.panY;
+  v.panX += dx;
+  v.panY += dy;
+  applyTransform(); // re-clamps panX/panY to the bounded scene
+  return { dx: v.panX - beforeX, dy: v.panY - beforeY };
+}
+
 export function setZoom(nextZoom: number, anchorScreenX?: number, anchorScreenY?: number) {
   const r = ctx.viewport.getBoundingClientRect();
   const ax = anchorScreenX ?? r.left + r.width / 2;

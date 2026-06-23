@@ -11,6 +11,7 @@ export function openDb(path: string): DatabaseSync {
     CREATE TABLE IF NOT EXISTS columns (id TEXT PRIMARY KEY, board_id TEXT, name TEXT, wip INTEGER, pos INTEGER);
     CREATE TABLE IF NOT EXISTS cards   (id TEXT PRIMARY KEY, column_id TEXT, title TEXT, notes TEXT, due TEXT, labels TEXT, blocked_by TEXT, parent TEXT, entered_at INTEGER, pos INTEGER);
     CREATE TABLE IF NOT EXISTS comments(id TEXT PRIMARY KEY, card_id TEXT, author TEXT, at TEXT, text TEXT, pos INTEGER);
+    CREATE TABLE IF NOT EXISTS meta    (key TEXT PRIMARY KEY, value TEXT);
   `);
   // Migrate older DBs (columns added nullable).
   const cardCols = db.prepare("PRAGMA table_info(cards)").all() as Array<{ name: string }>;
@@ -40,8 +41,10 @@ export function loadAll(db: DatabaseSync): WorldState {
   const colStmt = db.prepare("SELECT id,name,wip FROM columns WHERE board_id=? ORDER BY pos");
   const cardStmt = db.prepare("SELECT id,title,notes,due,labels,blocked_by,parent,entered_at FROM cards WHERE column_id=? ORDER BY pos");
   const cmtStmt = db.prepare("SELECT id,author,at,text FROM comments WHERE card_id=? ORDER BY pos");
+  const snapRow = db.prepare("SELECT value FROM meta WHERE key='snapBoards'").get() as { value: string } | undefined;
 
   return {
+    snapBoards: snapRow ? snapRow.value !== "0" : undefined, // absent → undefined (client defaults on)
     boards: boards.map((b): Board => ({
       id: b.id, title: b.title, x: b.x, y: b.y, collapsed: !!b.collapsed, foldW: b.fold_w ?? undefined,
       columns: (colStmt.all(b.id) as Array<{ id: string; name: string; wip: number | null }>).map((c): Column => ({
@@ -74,6 +77,8 @@ export function saveAll(db: DatabaseSync, world: WorldState): void {
         });
       });
     });
+    db.prepare("INSERT OR REPLACE INTO meta (key,value) VALUES ('snapBoards', ?)")
+      .run(world.snapBoards === false ? "0" : "1");
     db.exec("COMMIT");
   } catch (e) {
     db.exec("ROLLBACK");

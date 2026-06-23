@@ -52,6 +52,9 @@ export interface Board {
 
 export interface WorldState {
   boards: Board[];
+  /** Magnet boards to the anchor on drop/fold (and keep them from overlapping).
+   * Persisted. Absent = default on. */
+  snapBoards?: boolean;
 }
 
 /** Transient view state — pan/zoom, focus, open overlays. Never persisted with the data. */

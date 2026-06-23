@@ -259,8 +259,22 @@ kbd {
   box-shadow: var(--sh-pop);
   cursor: grabbing;
   border-color: var(--line);
+  opacity: 0.5; /* picked-up: reads as in-flight vs the faint ghost destination */
 }
 .board.col-drop-board { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--sh-board); }
+/* Landing preview while a board is dragged: where it magnets to on release. Same
+   amber drop wash as .column.drop-target / .drop-placeholder (area fill, not focus). */
+.board-drop-ghost {
+  position: absolute;
+  left: var(--gx, 0px);
+  top: var(--gy, 0px);
+  box-sizing: border-box;
+  border-radius: var(--r);
+  background: var(--accent-ghost-2);
+  box-shadow: inset 0 0 0 1px var(--accent-ghost);
+  pointer-events: none;
+  z-index: 1; /* above the static boards, below the lifted .board.dragging (--z-board-drag) */
+}
 .board-head {
   display: flex;
   align-items: center;

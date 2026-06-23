@@ -70,6 +70,16 @@ export function applyOp(s: WorldState, op: Op): WorldState {
       if (b) { b.x = op.x; b.y = op.y; }
       break;
     }
+    case "raiseBoard": {
+      // Boards stack by array order; move this one to the end so it renders on top.
+      // Only matters when boards overlap (free mode) — last moved should win on z.
+      const i = s.boards.findIndex((b) => b.id === op.id);
+      if (i >= 0 && i < s.boards.length - 1) s.boards.push(s.boards.splice(i, 1)[0]!);
+      break;
+    }
+    case "setBoardSnap":
+      s.snapBoards = op.on;
+      break;
     case "renameBoard": {
       const b = findBoard(s, op.id);
       if (b && op.title.trim()) b.title = op.title.trim();

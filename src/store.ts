@@ -213,6 +213,26 @@ export class Store {
     this.commit({ t: "moveBoard", id, x, y });
   }
 
+  // Bring a board to the front of the stack (last in render order). Used on drop in
+  // free mode so an overlapping board you just moved wins on z.
+  raiseBoard(id: ID) {
+    if (!this.findBoard(id)) return;
+    this.commit({ t: "raiseBoard", id });
+  }
+
+  get boardSnap(): boolean {
+    return this.world.snapBoards ?? true; // absent = on
+  }
+
+  // Persist + sync the board-snap setting WITHOUT emitData(): the flag only changes
+  // future drag behaviour, and re-rendering here would run the no-overlap relax and
+  // rearrange the current layout (which the user explicitly doesn't want on toggle).
+  setBoardSnap(on: boolean) {
+    const op: Op = { t: "setBoardSnap", on };
+    applyOp(this.world, op);
+    this.opSink?.(op);
+  }
+
   // ---- archive ----
   get archiveBoard(): Board | null { return this.findBoard(ARCHIVE_BOARD_ID); }
 

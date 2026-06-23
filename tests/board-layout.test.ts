@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   anchorIndex,
   BOARD_GAP,
+  boardLandingSpot,
   clampInsideOrigin,
   compactToAnchor,
   originOf,
@@ -161,5 +162,49 @@ describe("relaxOverlaps", () => {
     const out = relaxOverlaps(boards, gap);
     expect(out.has("a")).toBe(false); // top-left anchor unchanged
     expect(out.get("b")!.y).toBeGreaterThanOrEqual(220); // a.bottom (200) + gap
+  });
+});
+
+describe("boardLandingSpot (drag preview = drop, neighbours preserved)", () => {
+  const gap = 28;
+  // anchor (tall, left) + a column whose 'bot' sits far below with a gap above it.
+  const boards = [
+    { id: "anchor", x: 0, y: 0, w: 200, h: 600 },
+    { id: "top", x: 240, y: 0, w: 200, h: 200 },
+    { id: "mid", x: 240, y: 260, w: 200, h: 40 },
+    { id: "bot", x: 240, y: 520, w: 200, h: 200 },
+  ];
+
+  it("landing is exactly where compactToAnchor would settle the dragged board", () => {
+    const { landing } = boardLandingSpot(boards, "bot", gap);
+    const fromCompact = compactToAnchor(boards, gap, originOf(boards)).get("bot");
+    expect(landing).toEqual(fromCompact); // single source of truth: preview == drop
+    expect(landing).toEqual({ x: 228, y: 296 }); // slid up from y=520
+  });
+
+  it("returns the FULL compaction map so up() can still pack the neighbours", () => {
+    const { changed } = boardLandingSpot(boards, "bot", gap);
+    expect(changed.has("anchor")).toBe(false); // anchor immovable
+    expect(changed.get("top")).toEqual({ x: 228, y: 0 }); // a neighbour still moves
+    // the map equals a direct compactToAnchor call (no neighbour packing lost)
+    expect(changed).toEqual(compactToAnchor(boards, gap, originOf(boards)));
+  });
+
+  it("falls back to the dropped position when the board does not compact", () => {
+    // 'rt' already sits at the anchor's packed corner (x = 200 + gap, y = 0)
+    const tidy = [
+      { id: "anchor", x: 0, y: 0, w: 200, h: 600 },
+      { id: "rt", x: 228, y: 0, w: 200, h: 200 },
+    ];
+    const { changed, landing } = boardLandingSpot(tidy, "rt", gap);
+    expect(changed.has("rt")).toBe(false); // compactToAnchor omits unmoved boards
+    // rt is already at its packed spot, so it's absent from `changed`;
+    // landing falls back to its current position.
+    expect(landing).toEqual({ x: 228, y: 0 });
+  });
+
+  it("treats the pinned anchor as its own landing (never moved)", () => {
+    const { landing } = boardLandingSpot(boards, "anchor", gap);
+    expect(landing).toEqual({ x: 0, y: 0 });
   });
 });

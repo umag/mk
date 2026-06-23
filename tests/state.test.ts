@@ -100,4 +100,25 @@ describe("column + board ops", () => {
     applyOp(s, { t: "deleteBoard", id: "b1" });
     expect(s.boards.map((b) => b.id)).toEqual(["b2"]);
   });
+
+  it("raiseBoard moves a board to the top of the stack (end of the array)", () => {
+    const s = world(); // boards: [b1]
+    applyOp(s, { t: "addBoard", board: { id: "b2", title: "Two", x: 0, y: 0, columns: [] } });
+    applyOp(s, { t: "addBoard", board: { id: "b3", title: "Three", x: 0, y: 0, columns: [] } });
+    applyOp(s, { t: "raiseBoard", id: "b1" });
+    expect(s.boards.map((b) => b.id)).toEqual(["b2", "b3", "b1"]);
+    // already-on-top and unknown ids are no-ops
+    applyOp(s, { t: "raiseBoard", id: "b1" });
+    applyOp(s, { t: "raiseBoard", id: "nope" });
+    expect(s.boards.map((b) => b.id)).toEqual(["b2", "b3", "b1"]);
+  });
+
+  it("setBoardSnap stores the flag on the world (persisted)", () => {
+    const s = world();
+    expect(s.snapBoards).toBeUndefined(); // absent = default on
+    applyOp(s, { t: "setBoardSnap", on: false });
+    expect(s.snapBoards).toBe(false);
+    applyOp(s, { t: "setBoardSnap", on: true });
+    expect(s.snapBoards).toBe(true);
+  });
 });

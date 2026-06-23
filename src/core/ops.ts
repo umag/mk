@@ -9,6 +9,8 @@ import type { Board, Card, Column, Comment, ID } from "../types";
 export type Op =
   | { t: "addBoard"; board: Board }
   | { t: "moveBoard"; id: ID; x: number; y: number }
+  | { t: "raiseBoard"; id: ID }
+  | { t: "setBoardSnap"; on: boolean }
   | { t: "renameBoard"; id: ID; title: string }
   | { t: "setBoardCollapsed"; id: ID; collapsed: boolean; w?: number }
   | { t: "deleteBoard"; id: ID }

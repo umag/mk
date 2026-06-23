@@ -107,12 +107,14 @@ alarm.
 
 ### Selection & highlight fills
 
-One fill pattern for every "active / selected / will-receive-the-drop" state: a **translucent
-accent wash** — `--accent-ghost` (amber at ~0.13 alpha), optionally over a 1px accent inset.
-(Kaiten uses the identical trick at 0.16 alpha across its whole `--pm-color-*` palette; we use
-one calm amber.) It covers the focus halo, the command-palette active row, the column
-drop-target, and the quick-add ring — the same wash everywhere, so "active" always looks the
-same. Never a solid accent block for selection; the wash keeps the surface calm.
+One wash, one hue, two alphas by context — for every "active / selected /
+will-receive-the-drop" state: a **translucent accent wash** in amber. `--accent-ghost`
+(~0.13 alpha) is the focus/precise tier — the focus halo, the command-palette active row,
+the quick-add ring, and 1px accent insets. `--accent-ghost-2` (~0.07 alpha) is the broad
+**area-fill** tier — the column drop-target, the card drop-placeholder, and the board landing
+ghost. (Kaiten uses the identical trick at 0.16 alpha across its whole `--pm-color-*` palette;
+we use one calm amber.) The wash looks the same everywhere, so "active" always reads the same.
+Never a solid accent block for selection; the wash keeps the surface calm.
 
 ---
 
@@ -166,7 +168,10 @@ anchor); notes `1.0`/1.62 line-height; comment body `0.96`; meta/mono `0.74–0.
 - **No free-floating — boards magnet to the corner.** Dropping a board (or folding/unfolding one)
   packs the layout **toward the anchor (up + left)**, closing gaps, with a soft *magnet* clack. You
   float freely **while dragging**; the snap happens on release. Boards in genuinely different lanes
-  stay side-by-side (the pack doesn't stack everything into one column).
+  stay side-by-side (the pack doesn't stack everything into one column). While dragging, a faint
+  amber **landing ghost** previews exactly where the board will magnet to (the dragged board only —
+  neighbours glide into place on release); drag near a viewport edge and the canvas **auto-pans** so
+  off-screen room stays reachable.
 - **Fold a board to a horizontal bar** that **keeps its width**: a `^` chevron collapses it to its
   header (title + card count, `⌄` to unfold), freeing canvas *height* so the boards below magnet up.
   The folded width is remembered (persisted) so the bar stays the board's length. `⌘K → Collapse all
@@ -259,7 +264,10 @@ the outcome is immediate; the motion is feedback you can fire over.
   again mid-flight and it keeps moving. `⇧⏎` = **instant** (no motion) for blitzing triage.
 - **Quick-add**: the new card drops/expands into place (height + fade); input stays hot.
 - **Drag**: card lifts off the canvas (shadow + scale + grab cursor); columns reflow to open a
-  gap.
+  gap. **Board drag**: the board lifts and dims to a *picked-up* state, a translucent ghost marks
+  the magnet-snapped landing, and the canvas auto-pans near a viewport edge; on release the board
+  and its neighbours glide to the packed positions (FLIP). Edge auto-pan is **navigation, not
+  decoration** — it stays functional under reduced motion (only the inertial glide is suppressed).
 - **Canvas pan/zoom**: inertia/momentum, so the surface feels physical.
 - **Focus move** (`J`/`K`): the focus ring **glides** between cards rather than teleporting.
 - **Optional sound**: a soft mechanical "tick" on advance — **off by default**, a toggle, never
