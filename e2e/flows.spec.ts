@@ -86,8 +86,9 @@ test.describe("Board canvas flows", () => {
     await expect(page.locator(".sync-dot.online")).toBeVisible();
     const card = page.locator(".card", { hasText: "Drag a card between boards" });
     await card.click();
-    // Open the bespoke date picker from the detail sheet and pick a day
-    await page.getByTestId("card-detail-due").click();
+    // No due set → add one via the "+" menu, then pick a day in the bespoke picker
+    await page.getByTestId("card-detail-add").click();
+    await page.getByTestId("menu-item-due-date").click();
     await expect(page.getByTestId("calendar")).toBeVisible();
     await page.getByTestId("calendar-today").click(); // deterministic pick = today
     await page.keyboard.press("Escape"); // close detail, keep focus
@@ -120,10 +121,14 @@ test.describe("Board canvas flows", () => {
     await expect(page.locator(".sync-dot.online")).toBeVisible();
     const card = page.locator(".card", { hasText: "Drag a card between boards" });
     await card.click();
+    // Add a label via the "+" menu → bespoke input
+    await page.getByTestId("card-detail-add").click();
+    await page.getByTestId("menu-item-label").click();
     await page.getByTestId("card-detail-label-input").fill("spike");
     await page.getByTestId("card-detail-label-input").press("Enter");
     // chip appears in the sheet…
     await expect(page.getByTestId("card-detail-labels").getByText("spike")).toBeVisible();
+    await page.keyboard.press("Escape"); // exit add mode
     await page.keyboard.press("Escape"); // close detail
     // …and on the card facade, and survives a reload (persisted)
     await expect(card.getByTestId("card-labels").getByText("spike")).toBeVisible();
@@ -147,6 +152,19 @@ test.describe("Board canvas flows", () => {
     await page.keyboard.press("Escape"); // close popover
     await page.getByTestId("filter-clear").click();
     await expect(page.locator(".card", { hasText: "Drag a card between boards" })).toBeVisible();
+  });
+
+  test("a comment posts with ⌘/Ctrl-Enter and shows in the right-hand panel", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    await page.locator(".card", { hasText: "Reply to bank" }).click();
+    const input = page.getByTestId("comment-input");
+    await input.click();
+    // discard + send reveal only once the field is focused
+    await expect(page.getByTestId("comment-send")).toBeVisible();
+    await input.fill("Chased the broker again");
+    await input.press("Control+Enter"); // ⌘/Ctrl-Enter sends
+    await expect(page.getByTestId("card-detail-comments").getByText("Chased the broker again")).toBeVisible();
   });
 
 });

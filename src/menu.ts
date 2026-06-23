@@ -6,7 +6,7 @@ import type { Board, Card, Column } from "./types";
 
 let open: HTMLElement | null = null;
 
-interface Item {
+export interface Item {
   label: string;
   icon: keyof typeof icons;
   kbd?: string;
@@ -67,6 +67,16 @@ export function closeMenu() {
   open = null;
   window.removeEventListener("keydown", onEsc);
   window.removeEventListener("pointerdown", onDocDown);
+}
+
+export function isMenuOpen() {
+  return !!open;
+}
+
+/** Open a themed dropdown of items below an anchor (e.g. the detail "+" button). */
+export function openMenu(anchor: HTMLElement, items: Item[]) {
+  const r = anchor.getBoundingClientRect();
+  showAt(r.left, r.bottom + 6, items);
 }
 
 export function boardMenu(board: Board, anchor: HTMLElement) {

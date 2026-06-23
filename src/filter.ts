@@ -1,7 +1,7 @@
 import { clear, el, svg } from "./dom";
 import { icons } from "./icons";
 import { ctx } from "./context";
-import { collectLabels, labelHue, toggleInFilter } from "./core/labels";
+import { collectLabels, type LabelUse, labelHue, toggleInFilter } from "./core/labels";
 
 // Label filtering UI: a top-bar funnel button opens a popover of labels-in-use,
 // a filter bar shows the active selection, and clicking a label chip anywhere
@@ -78,6 +78,117 @@ export function updateFilterBar() {
       on: { click: clearLabelFilter },
     }, "Clear"),
   );
+}
+
+// ---- bespoke label input with a themed suggestion popover ----
+// (No native <datalist>: its combobox arrow can't be themed — same reason the
+//  date picker is bespoke. Auto-sizes to its content; suggests labels-in-use.)
+
+let lsEl: HTMLElement | null = null;
+let lsItems: LabelUse[] = [];
+let lsActive = -1;
+
+export function isLabelSuggestOpen() {
+  return !!lsEl;
+}
+
+export function closeLabelSuggest() {
+  if (!lsEl) return;
+  lsEl.remove();
+  lsEl = null;
+  lsItems = [];
+  lsActive = -1;
+  window.removeEventListener("pointerdown", onLsDown, true);
+}
+
+function onLsDown(e: PointerEvent) {
+  const t = e.target as Node;
+  if (lsEl && !lsEl.contains(t) && !(t instanceof Element && t.closest(".label-add"))) closeLabelSuggest();
+}
+
+export function labelInput(opts: {
+  existing: () => string[];
+  onAdd: (name: string) => void;
+  onStop?: () => void;
+}): HTMLInputElement {
+  const input = el("input", {
+    class: "label-add",
+    data: { testid: "card-detail-label-input" },
+    attrs: { type: "text", placeholder: "label…", "aria-label": "Add a label", autocomplete: "off", maxlength: "24", size: "6" },
+  }) as HTMLInputElement;
+
+  const resize = () => { input.size = Math.max(6, input.value.length + 1); };
+
+  const compute = (): LabelUse[] => {
+    const q = input.value.trim().toLowerCase();
+    const have = new Set(opts.existing().map((l) => l.toLowerCase()));
+    return collectLabels(ctx.store.world)
+      .filter((l) => !have.has(l.name.toLowerCase()) && (!q || l.name.toLowerCase().includes(q)))
+      .slice(0, 6);
+  };
+
+  const paintActive = () => {
+    lsEl?.querySelectorAll(".label-suggest-item").forEach((n, i) => n.classList.toggle("active", i === lsActive));
+  };
+
+  const render = () => {
+    lsItems = compute();
+    if (!lsItems.length) { closeLabelSuggest(); return; }
+    if (lsActive >= lsItems.length) lsActive = -1;
+    if (!lsEl) {
+      lsEl = el("div", { class: "label-suggest", data: { testid: "label-suggest" }, attrs: { role: "listbox" } });
+      document.body.appendChild(lsEl);
+      setTimeout(() => window.addEventListener("pointerdown", onLsDown, true));
+    }
+    clear(lsEl);
+    lsItems.forEach((it, i) => {
+      lsEl!.appendChild(el("button", {
+        class: `label-suggest-item${i === lsActive ? " active" : ""}`,
+        data: { testid: "label-suggest-item", label: it.name },
+        attrs: { type: "button", role: "option" },
+        on: {
+          pointerdown: (e: MouseEvent) => e.preventDefault(), // keep the input focused
+          click: () => add(it.name),
+          pointermove: () => { if (lsActive !== i) { lsActive = i; paintActive(); } },
+        },
+      }, labelChip(it.name), el("span", { class: "label-suggest-count", text: String(it.count) })));
+    });
+    const r = input.getBoundingClientRect();
+    lsEl.style.left = `${r.left}px`;
+    lsEl.style.top = `${r.bottom + 5}px`;
+  };
+
+  const add = (name: string) => {
+    closeLabelSuggest();
+    input.value = "";
+    resize();
+    opts.onAdd(name);
+    input.focus();
+    render(); // surface the remaining suggestions for burst-adding
+  };
+
+  input.addEventListener("focus", () => { lsActive = -1; render(); });
+  input.addEventListener("input", () => { resize(); lsActive = -1; render(); });
+  input.addEventListener("blur", () => setTimeout(() => {
+    if (document.activeElement?.classList.contains("label-add")) return; // refocus during burst
+    closeLabelSuggest();
+    if (!input.value.trim()) opts.onStop?.();
+  }, 150));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); if (lsItems.length) { lsActive = (lsActive + 1) % lsItems.length; paintActive(); } }
+    else if (e.key === "ArrowUp") { e.preventDefault(); if (lsItems.length) { lsActive = (lsActive - 1 + lsItems.length) % lsItems.length; paintActive(); } }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      const chosen = lsActive >= 0 && lsItems[lsActive] ? lsItems[lsActive]!.name : input.value.trim();
+      if (chosen) add(chosen);
+    } else if (e.key === "Escape") {
+      e.stopPropagation();
+      if (lsEl) closeLabelSuggest();
+      else opts.onStop?.();
+    }
+  });
+  resize();
+  return input;
 }
 
 // ---- the funnel popover (pick from labels-in-use) ----

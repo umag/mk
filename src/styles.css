@@ -66,10 +66,10 @@
   --z-minimap: 65;
   --z-hud: 66;
   --z-topbar: 80;
-  --z-menu: 90;
   --z-backdrop: 100;
   --z-modal: 110;
   --z-popover: 118; /* date picker over the card-detail sheet */
+  --z-menu: 119;    /* dropdown menus sit above the sheet + its popovers */
   --z-toast: 120;
   --z-drag: 130;
 
@@ -680,8 +680,9 @@ kbd {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(680px, 94vw);
-  max-height: 88vh;
+  width: clamp(320px, 74vw, 1080px);
+  min-height: min(420px, 70vh);
+  max-height: 90vh;
   z-index: var(--z-modal);
   display: flex;
   flex-direction: column;
@@ -708,7 +709,17 @@ kbd {
 .detail-danger:hover { background: var(--hot-bg); border-color: var(--hot); color: var(--hot); }
 .detail-danger:hover svg { color: var(--hot); }
 
-.detail-body { padding: 22px 24px 10px; overflow-y: auto; }
+/* two columns under the header: main content (left) + comments panel (right) */
+.detail-main { display: flex; flex: 1; min-height: 0; }
+.detail-left { flex: 1; min-width: 0; padding: 22px 24px; overflow-y: auto; }
+.detail-right { width: 380px; flex: none; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line-soft); background: var(--col); }
+.detail-comments { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 22px 6px; }
+.comments-h { margin-bottom: 14px; }
+@media (max-width: 760px) {
+  .detail-main { flex-direction: column; }
+  .detail-right { width: auto; border-left: none; border-top: 1px solid var(--line-soft); }
+  .detail-comments { max-height: 38vh; }
+}
 .detail-title {
   font-family: var(--serif); font-weight: 560; font-size: 1.62rem; line-height: 1.18;
   letter-spacing: -0.02em; font-optical-sizing: auto; color: var(--ink); text-wrap: balance;
@@ -797,6 +808,18 @@ kbd {
 .notes li { margin-bottom: 5px; }
 .notes li::marker { color: var(--accent-2); }
 .notes-empty { color: var(--ink-4); font-style: italic; font-family: var(--serif); }
+/* empty description: a click-to-edit hint field (mirrors the comment composer) */
+.desc-empty {
+  display: block; width: 100%; text-align: left;
+  background: var(--col); border: 1px solid var(--line-soft); border-radius: 10px;
+  padding: 11px 13px; color: var(--ink-4); font-size: 1rem; cursor: text;
+  transition: border-color var(--t-fast), color var(--t-fast);
+}
+.desc-empty:hover { border-color: var(--line); color: var(--ink-3); }
+.notes-view { cursor: text; } /* rendered description; click anywhere to edit (links still open) */
+.desc-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+.desc-actions .hint { font-size: 0.78rem; color: var(--ink-3); display: inline-flex; align-items: center; gap: 5px; }
+.desc-actions .hint:hover { color: var(--ink); }
 .notes-edit {
   width: 100%; min-height: 120px; background: var(--col); border: 1px solid var(--accent);
   border-radius: 10px; padding: 12px 14px; color: var(--ink); font-size: 1rem; line-height: 1.6;
@@ -813,7 +836,7 @@ kbd {
 .comment .txt { font-size: 0.96rem; line-height: 1.55; color: var(--ink-2); }
 .comments-empty { color: var(--ink-4); font-size: 0.92rem; }
 
-.composer { display: flex; gap: 12px; align-items: flex-end; padding: 16px 24px; border-top: 1px solid var(--line-soft); background: var(--panel-hi); }
+.composer { display: flex; gap: 10px; align-items: flex-end; padding: 14px 16px; border-top: 1px solid var(--line-soft); background: var(--panel-hi); }
 .composer textarea {
   flex: 1; min-height: 44px; max-height: 120px; border: 1px solid var(--line); border-radius: 10px;
   background: var(--col); padding: 11px 13px; color: var(--ink); font-size: 0.95rem; line-height: 1.5; resize: none; outline: none;
@@ -823,6 +846,13 @@ kbd {
 .composer textarea::placeholder { color: var(--ink-4); }
 .composer .send { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 15px; border: 1px solid var(--line); border-radius: 10px; background: var(--col); color: var(--ink-2); font-size: 0.88rem; font-weight: 500; transition: background var(--t-fast), color var(--t-fast); }
 .composer .send:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* discard + send appear only once the composer is focused / has text */
+.composer-actions { display: none; gap: 8px; align-items: center; flex: none; }
+.composer.is-active .composer-actions { display: flex; }
+.composer-cancel { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--col); color: var(--ink-3); transition: background var(--t-fast), color var(--t-fast); }
+.composer-cancel:hover { background: var(--card); color: var(--ink); }
+.composer-cancel svg { width: 16px; height: 16px; }
 
 /* ============================ Toast ============================ */
 .toast-region { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: var(--z-toast); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
@@ -888,15 +918,35 @@ kbd {
 .card-labels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 
 /* labels editor in the detail sheet */
-.detail-labels { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 4px 0 2px; }
+.detail-labels { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 2px 0 20px; }
+.detail-labels-icon { width: 15px; height: 15px; color: var(--ink-3); flex: none; margin-right: 1px; }
+
+/* the "+" add-to-card button in the meta bar — a compact square (reuses .field) */
+.add-meta { width: 34px; padding: 0; justify-content: center; cursor: pointer; }
+.add-meta svg { color: var(--ink-3); }
+.add-meta:hover { color: var(--ink); background: var(--card); border-color: var(--line); }
+.add-meta:hover svg { color: var(--ink-2); }
+
+/* label add input — auto-sized via the `size` attr; shown only while adding, so
+   it reads as an active field straight away (no dashed placeholder box). */
 .label-add {
-  font: 0.78rem var(--sans); color: var(--ink-2);
-  background: transparent; border: 1px dashed var(--line); border-radius: 999px;
-  padding: 3px 11px; min-width: 84px; outline: none;
-  transition: border-color var(--t-fast), background var(--t-fast);
+  font: 0.78rem var(--sans); color: var(--ink);
+  background: var(--col); border: 1px solid var(--accent); border-radius: 999px;
+  padding: 3px 10px; outline: none; box-shadow: 0 0 0 3px var(--accent-ghost);
+  transition: box-shadow var(--t-fast);
 }
 .label-add::placeholder { color: var(--ink-4); }
-.label-add:focus { border-style: solid; border-color: var(--accent); background: var(--accent-ghost-2); color: var(--ink); }
+
+/* bespoke label suggestions (replaces the unthemeable native <datalist>) */
+.label-suggest {
+  position: fixed; z-index: var(--z-popover); min-width: 160px; max-width: 280px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: var(--sh-pop); padding: 5px; display: flex; flex-direction: column; gap: 2px;
+}
+.label-suggest-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 7px; text-align: left; }
+.label-suggest-item:hover, .label-suggest-item.active { background: var(--accent-ghost-2); }
+.label-suggest-item .label-chip { pointer-events: none; }    /* the whole row is the hit target */
+.label-suggest-count { margin-left: auto; font: 0.7rem var(--mono); color: var(--ink-4); font-variant-numeric: tabular-nums; }
 
 /* funnel button badge in the top bar */
 .filter-btn { position: relative; }

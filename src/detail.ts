@@ -4,24 +4,23 @@ import { ctx } from "./context";
 import { sinceLabel } from "./store";
 import { dueLabel, dueStateOf } from "./core/due";
 import { closeCalendar, isCalendarOpen, openCalendar } from "./calendar";
-import { labelChip } from "./filter";
-import { collectLabels } from "./core/labels";
+import { closeLabelSuggest, isLabelSuggestOpen, labelChip, labelInput } from "./filter";
+import { type Item, isMenuOpen, openMenu } from "./menu";
 import { playSound } from "./sound";
 import type { Card } from "./types";
-
-const LABEL_DATALIST_ID = "card-detail-label-suggestions";
 
 let backdrop: HTMLElement | null = null;
 let sheet: HTMLElement | null = null;
 let currentId: string | null = null;
 let editingNotes = false;
-let refocusLabelAdd = false;
+let addingLabel = false;
 
 export function openDetail(cardId: string) {
   if (!ctx.store.findCard(cardId)) return;
   currentId = cardId;
   ctx.store.view.detailCardId = cardId;
   editingNotes = false;
+  addingLabel = false;
 
   backdrop = el("div", { class: "backdrop", on: { pointerdown: closeDetail } });
   sheet = el("div", { class: "detail", data: { testid: "card-detail" }, attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Card detail" } });
@@ -33,7 +32,9 @@ export function openDetail(cardId: string) {
 
 export function closeDetail() {
   if (!sheet) return;
+  flushDescription(); // persist any in-flight description edit before tearing down
   closeCalendar();
+  closeLabelSuggest();
   window.removeEventListener("keydown", onKey, true);
   backdrop?.remove();
   sheet.remove();
@@ -48,10 +49,14 @@ export function isDetailOpen() {
 
 function onKey(e: KeyboardEvent) {
   if (!sheet) return;
-  if (isCalendarOpen()) return; // the date picker owns keys while it's open
+  // While a popover owns the keys, let it handle them (it closes on its own Esc).
+  if (isCalendarOpen() || isMenuOpen() || isLabelSuggestOpen()) return;
   const typing = isField(e.target);
   if (e.key === "Escape") {
-    if (editingNotes) { editingNotes = false; rebuild(); }
+    const t = e.target as HTMLElement | null;
+    if (t?.dataset?.testid === "comment-input") return; // the composer handles Esc (discard)
+    if (editingNotes) { flushDescription(); editingNotes = false; rebuild(); }
+    else if (addingLabel) { addingLabel = false; rebuild(); }
     else closeDetail();
     e.stopPropagation();
     return;
@@ -59,8 +64,14 @@ function onKey(e: KeyboardEvent) {
   if (typing) return;
   if (e.key.toLowerCase() === "w") { e.preventDefault(); e.stopPropagation(); closeDetail(); }
   else if (e.key.toLowerCase() === "a") { e.preventDefault(); e.stopPropagation(); advanceFromDetail(); }
-  else if (e.key.toLowerCase() === "e") { e.preventDefault(); e.stopPropagation(); editingNotes = true; rebuild(); }
+  else if (e.key.toLowerCase() === "e") { e.preventDefault(); e.stopPropagation(); addingLabel = false; editingNotes = true; rebuild(); }
   else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); e.stopPropagation(); deleteFromDetail(); }
+}
+
+/** Persist the open description editor's current text (used before leaving edit mode). */
+function flushDescription() {
+  const ta = sheet?.querySelector<HTMLTextAreaElement>(".notes-edit");
+  if (ta && currentId) ctx.store.updateCard(currentId, { notes: ta.value });
 }
 
 function deleteFromDetail() {
@@ -118,8 +129,8 @@ function rebuild() {
     ),
   );
 
-  // body
-  const body = el("div", { class: "detail-body" });
+  // left column: title, meta, labels, description (scrolls independently)
+  const body = el("div", { class: "detail-left" });
 
   // title (click to edit)
   const title = el("h1", {
@@ -131,14 +142,15 @@ function rebuild() {
   });
   body.appendChild(title);
 
-  // meta bar
+  // meta bar — only what's set; the "+" adds due date / label / description
   const meta = el("div", { class: "meta-bar" });
   const setDue = (iso: string | null) => { ctx.store.updateCard(card.id, { due: iso }); rebuild(); };
-  meta.appendChild(
+  if (card.due) {
+    meta.appendChild(
     el(
       "div",
       {
-        class: `field due-field${card.due && dueHot ? " due-hot" : card.due && dueWarm ? " due-soon" : ""}`,
+        class: `field due-field${dueHot ? " due-hot" : dueWarm ? " due-soon" : ""}`,
         data: { testid: "card-detail-due" },
         on: {
           click: (e: MouseEvent) => {
@@ -148,18 +160,33 @@ function rebuild() {
         },
       },
       svg(icons.calendar),
-      el("span", { class: "due-text", text: card.due ? `Due ${dueLabel(card.due)}` : "Add due date" }),
-      card.due
-        ? el("button", {
-          class: "due-clear",
-          data: { testid: "card-detail-due-clear" },
-          attrs: { "aria-label": "Clear due date", title: "Clear" },
-          on: { click: (e: MouseEvent) => { e.stopPropagation(); setDue(null); } },
-        }, svg(icons.close))
-        : null,
+      el("span", { class: "due-text", text: `Due ${dueLabel(card.due)}` }),
+      el("button", {
+        class: "due-clear",
+        data: { testid: "card-detail-due-clear" },
+        attrs: { "aria-label": "Clear due date", title: "Clear" },
+        on: { click: (e: MouseEvent) => { e.stopPropagation(); setDue(null); } },
+      }, svg(icons.close)),
     ),
-  );
+    );
+  }
   meta.appendChild(el("span", { class: "field" }, svg(icons.clock), el("span", { class: "lbl", text: "in column" }), ` ${sinceLabel(card.enteredColumnAt)}`));
+  // the single "+" affordance — only offers what the card doesn't have yet
+  const addBtn = el("button", {
+    class: "field add-meta",
+    data: { testid: "card-detail-add" },
+    attrs: { "aria-label": "Add due date or label", title: "Add to card" },
+    on: {
+      click: () => {
+        const items: Item[] = [];
+        if (!card.due) items.push({ label: "Due date", icon: "calendar", run: () => openCalendar(addBtn, null, setDue) });
+        items.push({ label: "Label", icon: "tag", run: () => { editingNotes = false; addingLabel = true; rebuild(); } });
+        openMenu(addBtn, items);
+      },
+    },
+  }, svg(icons.plus));
+  meta.appendChild(addBtn);
+
   meta.appendChild(el("span", { class: "meta-spacer" }));
   if (next) {
     meta.appendChild(
@@ -179,81 +206,60 @@ function rebuild() {
   body.appendChild(meta);
 
   // labels — chips (click ✕ to remove) + an add input with suggestions
-  const labelsRow = el("div", { class: "detail-labels", data: { testid: "card-detail-labels" } });
-  for (const name of card.labels) {
-    labelsRow.appendChild(labelChip(name, { onRemove: () => { ctx.store.removeLabel(card.id, name); rebuild(); } }));
-  }
-  const addInput = el("input", {
-    class: "label-add",
-    data: { testid: "card-detail-label-input" },
-    attrs: {
-      type: "text",
-      placeholder: card.labels.length ? "+ label" : "+ Add a label",
-      "aria-label": "Add a label",
-      list: LABEL_DATALIST_ID,
-      autocomplete: "off",
-      maxlength: "24",
-    },
-  });
-  const commitLabel = () => {
-    const v = addInput.value.trim();
-    addInput.value = "";
-    if (!v) return;
-    const before = card.labels.length;
-    ctx.store.addLabel(card.id, v);
-    if (card.labels.length !== before) { refocusLabelAdd = true; rebuild(); } // keep adding
-  };
-  addInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); commitLabel(); }
-    else if (e.key === "Escape") { e.stopPropagation(); addInput.value = ""; addInput.blur(); }
-  });
-  addInput.addEventListener("blur", commitLabel);
-  labelsRow.appendChild(addInput);
-
-  // suggestions: labels already in use that this card doesn't have yet
-  const dl = el("datalist", { attrs: { id: LABEL_DATALIST_ID } });
-  for (const { name } of collectLabels(ctx.store.world)) {
-    if (!card.labels.some((l) => l.toLowerCase() === name.toLowerCase())) {
-      dl.appendChild(el("option", { attrs: { value: name } }));
+  if (card.labels.length || addingLabel) {
+    const chip = (name: string) => labelChip(name, { onRemove: () => { ctx.store.removeLabel(card.id, name); rebuild(); } });
+    const labelsRow = el("div", { class: "detail-labels", data: { testid: "card-detail-labels" } }, svg(icons.tag, "detail-labels-icon"));
+    for (const name of card.labels) labelsRow.appendChild(chip(name));
+    if (addingLabel) {
+      const editor = labelInput({
+        existing: () => card.labels,
+        onAdd: (name) => {
+          const before = card.labels.length;
+          ctx.store.addLabel(card.id, name);
+          if (card.labels.length !== before) editor.insertAdjacentElement("beforebegin", chip(name)); // in place — keep focus
+        },
+        onStop: () => { addingLabel = false; rebuild(); },
+      });
+      labelsRow.appendChild(editor);
+      setTimeout(() => editor.focus());
     }
+    body.appendChild(labelsRow);
   }
-  labelsRow.appendChild(dl);
-  body.appendChild(labelsRow);
-  if (refocusLabelAdd) { refocusLabelAdd = false; setTimeout(() => addInput.focus()); }
 
-  // notes
-  const notes = el("div", { class: "section" });
-  notes.appendChild(
-    el("div", { class: "section-h" }, "Notes",
-      editingNotes ? null : el("button", { class: "hint", on: { click: () => { editingNotes = true; rebuild(); } } }, el("kbd", { text: "E" }), " to edit")),
-  );
-  if (editingNotes) {
-    const ta = el("textarea", { class: "notes-edit", data: { testid: "card-detail-notes-edit" }, attrs: { "aria-label": "Edit notes", placeholder: "Markdown — **bold**, - bullets" } });
-    ta.value = card.notes;
-    notes.appendChild(ta);
-    const save = () => { ctx.store.updateCard(card.id, { notes: ta.value }); editingNotes = false; rebuild(); };
-    ta.addEventListener("keydown", (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); save(); }
-    });
-    ta.addEventListener("blur", save);
-    setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
-  } else if (card.notes.trim()) {
-    notes.appendChild(renderNotes(card.notes));
-  } else {
-    notes.appendChild(el("div", { class: "notes notes-empty", text: "No notes yet — click to add some.", on: { click: () => { editingNotes = true; rebuild(); } } }));
+  // description — no header; the field's placeholder is its own call to action.
+  // Always present (empty = a click-to-edit hint, like the comment composer).
+  const editDesc = () => { addingLabel = false; editingNotes = true; rebuild(); };
+  {
+    const section = el("div", { class: "section" });
+    if (editingNotes) {
+      const ta = el("textarea", { class: "notes-edit", data: { testid: "card-detail-notes-edit" }, attrs: { "aria-label": "Description", placeholder: "Describe this card.  Markdown: **bold**, - bullets" } });
+      ta.value = card.notes;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const persist = () => ctx.store.updateCard(card.id, { notes: ta.value });
+      const done = () => { clearTimeout(timer); persist(); editingNotes = false; rebuild(); };
+      section.appendChild(ta);
+      section.appendChild(
+        el("div", { class: "desc-actions" },
+          el("button", { class: "hint", data: { testid: "card-detail-desc-done" }, on: { click: done } }, "Done ", el("kbd", { text: "⌘↵" }))),
+      );
+      // Autosave while typing — never on blur, so copying out and back keeps edit mode.
+      ta.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(persist, 500); });
+      ta.addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); done(); } });
+      setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
+    } else if (card.notes.trim()) {
+      section.appendChild(el("div", { class: "notes-view", attrs: { title: "Click to edit" }, on: { click: editDesc } }, renderNotes(card.notes)));
+    } else {
+      section.appendChild(el("button", { class: "desc-empty", data: { testid: "card-detail-desc-add" }, on: { click: editDesc } }, "Add a description…"));
+    }
+    body.appendChild(section);
   }
-  body.appendChild(notes);
 
-  body.appendChild(el("div", { class: "detail-rule" }));
-
-  // comments
-  const comments = el("div", { class: "section" });
-  comments.appendChild(el("div", { class: "section-h", text: `Comments · ${card.comments.length}` }));
-  if (card.comments.length === 0) {
-    comments.appendChild(el("div", { class: "comments-empty", text: "No comments yet." }));
-  }
+  // right column: the comments thread (scrolls), with the composer pinned at its foot
+  const right = el("div", { class: "detail-right" });
+  const thread = el("div", { class: "detail-comments", data: { testid: "card-detail-comments" } });
+  thread.appendChild(el("div", { class: "section-h comments-h", text: card.comments.length ? `Comments · ${card.comments.length}` : "Comments" }));
   for (const c of card.comments) {
-    comments.appendChild(
+    thread.appendChild(
       el("div", { class: "comment" },
         el("div", { class: "avatar-sm", text: c.author.slice(0, 1) }),
         el("div", {},
@@ -263,23 +269,42 @@ function rebuild() {
       ),
     );
   }
-  body.appendChild(comments);
-  sheet.appendChild(body);
+  right.appendChild(thread);
 
-  // composer
-  const ta = el("textarea", { data: { testid: "comment-input" }, attrs: { placeholder: "Add a note…  ⌘⏎ to send", rows: "1", "aria-label": "Add a comment" } });
+  // composer — just a line until focused; then it reveals discard + send
+  const composer = el("div", { class: "composer" });
+  const ta = el("textarea", { data: { testid: "comment-input" }, attrs: { placeholder: "Add a comment…", rows: "1", "aria-label": "Add a comment" } });
   const send = () => {
     const v = ta.value.trim();
     if (!v) return;
     ctx.store.addComment(card.id, v);
     rebuild();
   };
+  const sync = () => composer.classList.toggle("is-active", document.activeElement === ta || ta.value.trim().length > 0);
+  const cancel = () => { ta.value = ""; ta.blur(); sync(); };
+  ta.addEventListener("focus", sync);
+  ta.addEventListener("input", sync);
+  ta.addEventListener("blur", () => setTimeout(sync, 120)); // let a button click land first
   ta.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); send(); }
+    else if (e.key === "Escape") { e.stopPropagation(); cancel(); } // abandon, don't close the sheet
   });
-  sheet.appendChild(
-    el("div", { class: "composer" }, ta, el("button", { class: "send", data: { testid: "comment-send" }, on: { click: send } }, "Send", el("kbd", { text: "⌘↵" }))),
+  composer.append(
+    ta,
+    el("div", { class: "composer-actions" },
+      el("button", {
+        class: "composer-cancel",
+        data: { testid: "comment-cancel" },
+        attrs: { "aria-label": "Discard comment", title: "Discard (Esc)" },
+        on: { click: cancel },
+      }, svg(icons.close)),
+      el("button", { class: "send", data: { testid: "comment-send" }, on: { click: send } }, "Send", el("kbd", { text: "⌘↵" })),
+    ),
   );
+  right.appendChild(composer);
+
+  const main = el("div", { class: "detail-main" }, body, right);
+  sheet.appendChild(main);
 }
 
 function editTitle(card: Card) {
