@@ -63,6 +63,11 @@ export function applyOp(s: WorldState, op: Op): WorldState {
       if (b && op.title.trim()) b.title = op.title.trim();
       break;
     }
+    case "setBoardCollapsed": {
+      const b = findBoard(s, op.id);
+      if (b) b.collapsed = op.collapsed;
+      break;
+    }
     case "deleteBoard": {
       const i = s.boards.findIndex((b) => b.id === op.id);
       if (i >= 0) s.boards.splice(i, 1);

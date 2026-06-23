@@ -50,6 +50,7 @@ const boardSummary = (b: Board) => ({
   y: b.y,
   columns: b.columns.length,
   cards: b.columns.reduce((n, c) => n + c.cards.length, 0),
+  collapsed: !!b.collapsed,
   archived: b.id === ARCHIVE_BOARD_ID,
 });
 
@@ -365,12 +366,13 @@ Deno.serve({ port: PORT }, async (req) => {
         if (method === "GET") return b ? json(b) : json({ error: "not found" }, 404);
         if (method === "PATCH") {
           if (!b) return json({ error: "not found" }, 404);
-          const body = (await req.json()) as { title?: string; x?: number; y?: number };
+          const body = (await req.json()) as { title?: string; x?: number; y?: number; collapsed?: boolean };
           const ops: Op[] = [];
           if (typeof body.title === "string" && body.title.trim()) ops.push({ t: "renameBoard", id, title: body.title });
           if (typeof body.x === "number" || typeof body.y === "number") {
             ops.push({ t: "moveBoard", id, x: body.x ?? b.x, y: body.y ?? b.y });
           }
+          if (typeof body.collapsed === "boolean") ops.push({ t: "setBoardCollapsed", id, collapsed: body.collapsed });
           commit(ops);
           return json(findBoard(state, id));
         }

@@ -167,4 +167,27 @@ test.describe("Board canvas flows", () => {
     await expect(page.getByTestId("card-detail-comments").getByText("Chased the broker again")).toBeVisible();
   });
 
+  test("a board folds to its header (persisted) and unfolds again", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    const lae = () => page.locator(".board", { hasText: "Life & Errands" });
+    await expect(lae().locator(".board-cols")).toBeVisible();
+
+    await lae().hover();
+    await lae().getByTestId("board-collapse").click();
+    // folded: columns gone, but title + card count still shown
+    await expect(lae().locator(".board-cols")).toHaveCount(0);
+    await expect(lae().getByTestId("board-title")).toBeVisible();
+    await expect(lae().getByTestId("board-count")).toBeVisible();
+
+    // the fold persists across a reload
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(lae().locator(".board-cols")).toHaveCount(0);
+
+    // unfold restores the columns
+    await lae().getByTestId("board-collapse").click();
+    await expect(lae().locator(".board-cols")).toBeVisible();
+  });
+
 });

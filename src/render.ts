@@ -125,8 +125,17 @@ function buildBoard(board: Board): HTMLElement {
       svg(archive ? icons.box : isAnchor ? icons.pin : icons.grip),
     ),
     el("h2", { class: "board-title", data: { boardTitle: board.id, testid: "board-title" }, text: board.title }),
-    el("span", { class: "board-flow", text: archive ? "auto-archived after 10 days done" : flow }),
+    board.collapsed ? null : el("span", { class: "board-flow", text: archive ? "auto-archived after 10 days done" : flow }),
     el("span", { class: "board-count", data: { testid: "board-count" }, text: String(total) }),
+    el("button", {
+      class: "board-collapse",
+      data: { testid: "board-collapse" },
+      attrs: { "aria-label": board.collapsed ? "Unfold board" : "Fold board", title: board.collapsed ? "Unfold" : "Fold" },
+      on: {
+        pointerdown: (e: MouseEvent) => e.stopPropagation(),
+        click: (e: MouseEvent) => { e.stopPropagation(); ctx.store.setBoardCollapsed(board.id, !board.collapsed); },
+      },
+    }, svg(board.collapsed ? icons.chevronDown : icons.chevronUp)),
     archive ? null : el("button", {
       class: "board-menu",
       data: { testid: "board-menu-button" },
@@ -138,25 +147,30 @@ function buildBoard(board: Board): HTMLElement {
     }, svg(icons.more)),
   );
 
-  const cols = el("div", { class: "board-cols" });
-  board.columns.forEach((column, i) => cols.appendChild(buildColumn(board, column, i)));
-  if (!archive) {
-    cols.appendChild(
-      el("button", {
-        class: "col-add-col",
-        data: { testid: "add-column-button" },
-        attrs: { "aria-label": "Add column" },
-        on: {
-          click: () => {
-            const col = ctx.store.addColumn(board.id);
-            if (col) ctx.startCapture(col.id);
+  const section = el("section", { class: `board${isAnchor ? " is-anchor" : ""}${archive ? " is-archive" : ""}${board.collapsed ? " is-collapsed" : ""}`, data: { boardId: board.id, testid: "board" }, style: { "--bx": `${board.x}px`, "--by": `${board.y}px` } as Record<string, string> }, head);
+
+  if (!board.collapsed) {
+    const cols = el("div", { class: "board-cols" });
+    board.columns.forEach((column, i) => cols.appendChild(buildColumn(board, column, i)));
+    if (!archive) {
+      cols.appendChild(
+        el("button", {
+          class: "col-add-col",
+          data: { testid: "add-column-button" },
+          attrs: { "aria-label": "Add column" },
+          on: {
+            click: () => {
+              const col = ctx.store.addColumn(board.id);
+              if (col) ctx.startCapture(col.id);
+            },
           },
-        },
-      }, svg(icons.plus)),
-    );
+        }, svg(icons.plus)),
+      );
+    }
+    section.appendChild(cols);
   }
 
-  return el("section", { class: `board${isAnchor ? " is-anchor" : ""}${archive ? " is-archive" : ""}`, data: { boardId: board.id, testid: "board" }, style: { "--bx": `${board.x}px`, "--by": `${board.y}px` } as Record<string, string> }, head, cols);
+  return section;
 }
 
 function buildColumn(board: Board, column: Column, index: number): HTMLElement {

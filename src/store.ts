@@ -170,6 +170,12 @@ export class Store {
     this.commit({ t: "renameBoard", id, title });
   }
 
+  setBoardCollapsed(id: ID, collapsed: boolean) {
+    const b = this.findBoard(id);
+    if (!b || !!b.collapsed === collapsed) return;
+    this.commit({ t: "setBoardCollapsed", id, collapsed });
+  }
+
   deleteBoard(id: ID) {
     if (!this.findBoard(id)) return;
     this.commit({ t: "deleteBoard", id });

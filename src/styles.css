@@ -305,6 +305,18 @@ kbd {
 .board:hover .board-menu { opacity: 1; }
 .board-menu:hover { background: var(--card); color: var(--ink-2); }
 .board-menu svg { width: 17px; height: 17px; }
+/* fold / unfold chevron — hover-revealed when open, always shown when folded */
+.board-collapse {
+  width: 28px; height: 28px; border-radius: 7px; color: var(--ink-4);
+  display: grid; place-items: center; opacity: 0;
+  transition: opacity var(--t-fast), background var(--t-fast), color var(--t-fast);
+}
+.board:hover .board-collapse { opacity: 1; }
+.board.is-collapsed .board-collapse { opacity: 1; }
+.board-collapse:hover { background: var(--card); color: var(--ink-2); }
+.board-collapse svg { width: 16px; height: 16px; }
+/* folded board: the header is the whole board — round it off, drop the divider */
+.board.is-collapsed > .board-head { border-bottom: none; border-radius: var(--r); }
 
 .board-cols { display: flex; gap: 14px; padding: 15px; align-items: stretch; }
 

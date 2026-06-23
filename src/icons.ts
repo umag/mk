@@ -18,6 +18,8 @@ export const icons = {
   pin: wrap(`<path d="M9 4h6M10 4l-.7 6.2L6 13h12l-3.3-2.8L14 4M12 13v7"/>`, 1.9),
   chevronLeft: wrap(`<path d="M15 6l-6 6 6 6"/>`, 2),
   chevronRight: wrap(`<path d="M9 6l6 6-6 6"/>`, 2),
+  chevronUp: wrap(`<path d="M4 15l8-6 8 6"/>`, 2),
+  chevronDown: wrap(`<path d="M4 9l8 6 8-6"/>`, 2),
   box: wrap(`<path d="M3 7l1.6-3h14.8L21 7M3 7h18v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3 7h18M10 11h4"/>`, 1.7),
   more: wrap(`<circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/>`),
   trash: wrap(`<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/>`, 1.9),
