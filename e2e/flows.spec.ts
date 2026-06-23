@@ -190,4 +190,36 @@ test.describe("Board canvas flows", () => {
     await expect(lae().locator(".board-cols")).toBeVisible();
   });
 
+  test("a card can be blocked by another — shown in detail and on the card", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    // Inbox cards (the anchor board is never folded by other tests)
+    const card = page.locator(".card", { hasText: "Call plumber about the kitchen leak" });
+    await card.click();
+    await page.getByTestId("card-detail-add").click();
+    await page.getByTestId("menu-item-blocked-by").click();
+    await expect(page.getByTestId("card-picker")).toBeVisible();
+    await page.getByTestId("card-picker-input").fill("Claude tabs");
+    await page.getByTestId("card-picker-item").first().click();
+    // the blocker appears in the detail…
+    await expect(page.getByTestId("card-detail-blockers")).toBeVisible();
+    await page.keyboard.press("Escape"); // close detail
+    // …and the card face shows the calm "Blocked" badge
+    await expect(card.getByTestId("card-blocked")).toBeVisible();
+  });
+
+  test("adding a subtask shows roll-up progress on the parent", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    const parent = page.locator(".card", { hasText: "Local-first" });
+    await parent.click();
+    await page.getByTestId("card-detail-add").click();
+    await page.getByTestId("menu-item-add-subtask").click();
+    await page.getByTestId("card-picker-input").fill("Renew car insurance");
+    await page.getByTestId("card-picker-item").first().click();
+    await expect(page.getByTestId("card-detail-subtasks")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(parent.getByTestId("card-subtasks")).toBeVisible(); // x/y on the facade
+  });
+
 });

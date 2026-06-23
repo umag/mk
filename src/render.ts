@@ -6,9 +6,15 @@ import { boardMenu, cardMenu, columnMenu } from "./menu";
 import { dueLabel, dueStateOf } from "./core/due";
 import { isArchiveBoard, isDoneColumn } from "./core/done";
 import { cardMatchesFilter } from "./core/labels";
+import { childIndex, isBlocked, isCardDone } from "./core/relations";
 import { labelChip, toggleLabelFilter, updateFilterBar } from "./filter";
+import { boardRectsNow, invalidateScene } from "./canvas";
 import { anchorIndex, BOARD_GAP, originOf, relaxOverlaps } from "./board-layout";
-import type { Board, Card, Column, DueState } from "./types";
+import type { Board, Card, Column, DueState, ID } from "./types";
+
+// parent → children, rebuilt once per world render so the facade can show
+// subtask roll-ups without an O(n²) scan per card.
+let parentChildren: Map<ID, ID[]> = new Map();
 
 /** Cards in a column that pass the active label filter (filter never applies in the Archive). */
 function visibleCards(board: Board, column: Column): Card[] {
@@ -40,6 +46,7 @@ const dueClass = (s: DueState): string =>
 
 export function renderWorld(): void {
   const { world, store } = ctx;
+  parentChildren = childIndex(store.world);
   const prev = captureCardRects(world);
   const prevBoards = captureBoardRects(world);
 
@@ -70,6 +77,7 @@ export function renderWorld(): void {
   flipBoards(world, prevBoards);
 
   ctx.updateFocusRing();
+  invalidateScene(); // board sizes may have changed — re-measure on next access
   ctx.updateChrome();
   updateFilterBar();
   for (const fn of afterRender) fn();
@@ -260,10 +268,21 @@ function buildCard(card: Card): HTMLElement {
     children.push(row);
   }
 
-  if (card.due || card.comments.length) {
+  // dependency state — calm advisory (no red; red is overdue-only per DESIGN)
+  const blocked = isBlocked(ctx.store.world, card);
+  if (blocked) {
+    children.push(el("div", { class: "card-blocked", data: { testid: "card-blocked" } }, svg(icons.blocked), "Blocked"));
+  }
+
+  const kids = parentChildren.get(card.id);
+  if (card.due || card.comments.length || kids) {
     const foot = el("div", { class: "card-foot" });
     if (card.due) {
       foot.appendChild(el("span", { class: `due ${dueClass(dueState)}`, data: { testid: "card-due" }, text: dueLabel(card.due) }));
+    }
+    if (kids) {
+      const done = kids.reduce((n, id) => n + (isCardDone(ctx.store.world, id) ? 1 : 0), 0);
+      foot.appendChild(el("span", { class: "subt", data: { testid: "card-subtasks" } }, svg(icons.subtasks), `${done}/${kids.length}`));
     }
     if (card.comments.length) {
       foot.appendChild(el("span", { class: "cmt", data: { testid: "card-comments" } }, svg(icons.comment), String(card.comments.length)));
@@ -275,7 +294,7 @@ function buildCard(card: Card): HTMLElement {
   return el(
     "article",
     {
-      class: `card${card.due ? ` due-${dueState}` : ""}${focused ? " focus" : ""}`,
+      class: `card${card.due ? ` due-${dueState}` : ""}${blocked ? " is-blocked" : ""}${focused ? " focus" : ""}`,
       data: { cardId: card.id, testid: "card" },
       attrs: { tabindex: "-1" },
       on: {
@@ -335,17 +354,6 @@ export function computeBoardSpot(): { x: number; y: number } {
   return { x: Math.round(minX), y: Math.round(maxBottom + 40) };
 }
 
-function boardRects(): Rect[] {
-  const out: Rect[] = [];
-  ctx.world.querySelectorAll<HTMLElement>(".board").forEach((b) => {
-    const id = b.dataset.boardId!;
-    const board = ctx.store.findBoard(id);
-    if (!board) return;
-    out.push({ x: board.x, y: board.y, w: b.offsetWidth, h: b.offsetHeight });
-  });
-  return out;
-}
-
 function viewportWorldRect(): Rect {
   const { panX, panY, zoom } = ctx.store.view;
   return {
@@ -357,7 +365,7 @@ function viewportWorldRect(): Rect {
 }
 
 export function updateChrome(): void {
-  const boards = boardRects();
+  const boards = boardRectsNow();
   const vp = viewportWorldRect();
   const all = [...boards, vp];
   if (!all.length) return;

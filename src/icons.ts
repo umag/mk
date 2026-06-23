@@ -31,6 +31,9 @@ export const icons = {
   tag: wrap(`<path d="M4 4h7.6a2 2 0 0 1 1.4.6l6.4 6.4a2 2 0 0 1 0 2.8l-6.6 6.6a2 2 0 0 1-2.8 0L3.4 13.6A2 2 0 0 1 3 12.2V5a1 1 0 0 1 1-1z"/><circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none"/>`, 1.8),
   filter: wrap(`<path d="M3 5h18l-7 8.5V20l-4-2.2v-4.3z"/>`, 1.9),
   text: wrap(`<path d="M5 6h14M5 11h14M5 16h9"/>`, 1.9),
+  link: wrap(`<path d="M9.5 12h5"/><path d="M10.5 8.2H8a3.8 3.8 0 0 0 0 7.6h2.5"/><path d="M13.5 8.2H16a3.8 3.8 0 0 1 0 7.6h-2.5"/>`, 1.9),
+  blocked: wrap(`<circle cx="12" cy="12" r="8.2"/><path d="M6.3 6.3l11.4 11.4"/>`, 1.9),
+  subtasks: wrap(`<path d="M3.5 6l1.6 1.6L8 5"/><path d="M3.5 12l1.6 1.6L8 11"/><path d="M11 6h9.5M11 12h9.5M11 18h6"/>`, 1.8),
 } as const;
 
 export type IconName = keyof typeof icons;

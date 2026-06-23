@@ -1,6 +1,6 @@
 import type { Board, Card, Column, ID, ViewState, WorldState } from "./types";
 import type { Op } from "./core/ops";
-import { applyOp, type CardLoc, findBoard, findCard, findColumn, nextColumnOf } from "./core/state";
+import { applyOp, type CardLoc, findBoard, findCard, findColumn, isAncestor, nextColumnOf } from "./core/state";
 import { addLabelTo, removeLabelFrom } from "./core/labels";
 import { ARCHIVE_BOARD_ID } from "./core/done";
 import { archiveBoardObject, archiveSweepOps } from "./core/archive";
@@ -63,7 +63,7 @@ export class Store {
     if (!col || !title.trim()) return null;
     const cardObj: Card = {
       id: uid("card"), title: title.trim(), notes: "", due: null, labels: [],
-      comments: [], enteredColumnAt: Date.now(),
+      blockedBy: [], parent: null, comments: [], enteredColumnAt: Date.now(),
     };
     this.commit({ t: "addCard", columnId, index: atTop ? 0 : col.column.cards.length, card: cardObj });
     return cardObj;
@@ -90,6 +90,24 @@ export class Store {
     const loc = this.findCard(id);
     if (!loc) return;
     this.updateCard(id, { labels: removeLabelFrom(loc.card.labels, name) });
+  }
+
+  /** Mark `id` as blocked by `by` (a dependency). */
+  blockCard(id: ID, by: ID) {
+    if (id === by || !this.findCard(id) || !this.findCard(by)) return;
+    this.commit({ t: "blockCard", id, by });
+  }
+
+  unblockCard(id: ID, by: ID) {
+    if (!this.findCard(id)) return;
+    this.commit({ t: "unblockCard", id, by });
+  }
+
+  /** Set (or clear) a card's parent, guarding self-parenting and cycles. */
+  setParent(id: ID, parent: ID | null) {
+    if (!this.findCard(id)) return;
+    if (parent !== null && (parent === id || !this.findCard(parent) || isAncestor(this.world, id, parent))) return;
+    this.commit({ t: "setParent", id, parent });
   }
 
   deleteCard(id: ID): { columnId: ID; index: number; card: Card } | null {

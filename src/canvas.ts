@@ -8,18 +8,45 @@ const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 1.6;
 const SCENE_MARGIN = 180; // world px of breathing room around the boards
 
-/** Current board rectangles in world coords (store position + measured size). */
-function boardRectsNow(): Rect[] {
+// Board SIZES are measured lazily and cached: reading offsetWidth forces layout,
+// and a board's size only changes when its content does (cards/columns/fold), not
+// while panning. Positions come straight from the store (no layout) so a live drag
+// stays accurate. invalidateScene() clears the cache (called after every render).
+const sizeCache = new Map<string, { w: number; h: number }>();
+export function invalidateScene() {
+  sizeCache.clear();
+}
+
+/** Current board rectangles in world coords (store position + cached size). */
+export function boardRectsNow(): Rect[] {
   const out: Rect[] = [];
   ctx.world.querySelectorAll<HTMLElement>(".board").forEach((b) => {
-    const board = ctx.store.findBoard(b.dataset.boardId ?? "");
-    if (board) out.push({ x: board.x, y: board.y, w: b.offsetWidth, h: b.offsetHeight });
+    const id = b.dataset.boardId ?? "";
+    const board = ctx.store.findBoard(id);
+    if (!board) return;
+    let size = sizeCache.get(id);
+    if (!size) {
+      size = { w: b.offsetWidth, h: b.offsetHeight };
+      sizeCache.set(id, size);
+    }
+    out.push({ x: board.x, y: board.y, w: size.w, h: size.h });
   });
   return out;
 }
 
 let spaceHeld = false;
 let raf = 0;
+
+// The minimap + scrollbars are visual feedback, not interaction-critical, so
+// coalesce their refresh to one rAF — multiple pan ticks per frame share it.
+let chromeRaf = 0;
+function scheduleChrome() {
+  if (chromeRaf) return;
+  chromeRaf = requestAnimationFrame(() => {
+    chromeRaf = 0;
+    ctx.updateChrome();
+  });
+}
 
 export function initCanvas() {
   const vp = ctx.viewport;
@@ -69,19 +96,20 @@ export function applyTransform() {
   view.panY = clamped.y;
 
   const { panX, panY, zoom } = view;
-  ctx.world.style.setProperty("--pan-x", `${panX}px`);
-  ctx.world.style.setProperty("--pan-y", `${panY}px`);
-  ctx.world.style.setProperty("--zoom", String(zoom));
+  // Write the concrete properties directly. Driving these through *inherited* CSS
+  // custom properties (--pan-x etc.) invalidates the computed style of every
+  // descendant card on each change — a large cost at hundreds of cards. The
+  // transform / background are non-inherited, so only these two nodes restyle.
+  ctx.world.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
 
   const g = GRID * zoom;
-  ctx.viewport.style.setProperty("--grid", `${g}px`);
-  ctx.viewport.style.setProperty("--grid-x", `${panX}px`);
-  ctx.viewport.style.setProperty("--grid-y", `${panY}px`);
+  ctx.viewport.style.backgroundSize = `${g}px ${g}px`;
+  ctx.viewport.style.backgroundPosition = `${panX}px ${panY}px`;
 
   const lvl = document.querySelector(".zoom .lvl");
   if (lvl) lvl.textContent = `${Math.round(zoom * 100)}%`;
 
-  ctx.updateChrome();
+  scheduleChrome();
 }
 
 export function screenToWorld(sx: number, sy: number): { x: number; y: number } {

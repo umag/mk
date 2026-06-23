@@ -217,8 +217,7 @@ kbd {
   touch-action: none;
   background-color: var(--bg);
   background-image: radial-gradient(var(--dot) 1.1px, transparent 1.3px);
-  background-size: var(--grid, 28px) var(--grid, 28px);
-  background-position: var(--grid-x, 0px) var(--grid-y, 0px);
+  background-size: 28px 28px;       /* size + position are driven directly by canvas.ts */
   cursor: grab;
 }
 .canvas-viewport.panning { cursor: grabbing; }
@@ -238,7 +237,7 @@ kbd {
   top: 0;
   left: 0;
   transform-origin: 0 0;
-  transform: translate(var(--pan-x, 0px), var(--pan-y, 0px)) scale(var(--zoom, 1));
+  transform: translate(0px, 0px); /* canvas.ts sets the live transform directly */
   will-change: transform;
 }
 
@@ -1008,3 +1007,47 @@ kbd {
   border: 1px solid var(--line); background: var(--bg-2);
 }
 .filter-pop-clear:hover { color: var(--ink); background: var(--panel-hi); }
+
+/* ── Card relationships: dependencies (blocked) + subtasks ────────────────── */
+/* facade "blocked" badge — advisory, so a full-contrast ink jump, never red */
+.card-blocked {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 9px;
+  font: 560 0.74rem var(--sans); color: var(--ink); letter-spacing: 0.01em;
+  background: var(--col); border: 1px solid var(--line); border-radius: 7px; padding: 2px 8px;
+}
+.card-blocked svg { width: 13px; height: 13px; color: var(--ink-2); }
+.card.is-blocked { border-color: color-mix(in oklch, var(--ink-4) 35%, var(--line)); }
+
+/* facade subtask roll-up — sits with the other foot meta */
+.subt { font: 0.8rem var(--mono); color: var(--ink-4); display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.subt svg { width: 14px; height: 14px; }
+
+/* detail relationship rows */
+.rel-section .section-h .rel-count { margin-left: auto; text-transform: none; letter-spacing: 0; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rel-row { display: flex; align-items: stretch; border: 1px solid var(--line-soft); border-radius: 9px; background: var(--col); margin-bottom: 6px; overflow: hidden; }
+.rel-row:hover { border-color: var(--line); }
+.rel-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; padding: 8px 10px; text-align: left; }
+.rel-ic { width: 15px; height: 15px; color: var(--ink-3); flex: none; }
+.rel-text { min-width: 0; display: flex; flex-direction: column; }
+.rel-title { font-size: 0.92rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rel-sub { font: 0.72rem var(--mono); color: var(--ink-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rel-done { margin-left: auto; font: 0.66rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--done); flex: none; padding-left: 8px; }
+.rel-row.is-done .rel-title { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--ink-4); }
+.rel-x { width: 32px; flex: none; display: grid; place-items: center; color: var(--ink-4); border-left: 1px solid var(--line-soft); }
+.rel-x:hover { background: var(--card); color: var(--ink-2); }
+.rel-x svg { width: 13px; height: 13px; }
+
+/* the bespoke "pick a card" popover (blockers / subtasks) */
+.card-pick {
+  position: fixed; z-index: var(--z-popover); width: 320px; max-width: 92vw;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: var(--sh-pop); padding: 8px; max-height: 56vh; display: flex; flex-direction: column;
+}
+.card-pick-head { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; border-bottom: 1px solid var(--line-soft); }
+.card-pick-head svg { width: 16px; height: 16px; color: var(--ink-4); }
+.card-pick-input { flex: 1; background: transparent; border: none; outline: none; color: var(--ink); font-size: 0.92rem; }
+.card-pick-input::placeholder { color: var(--ink-4); }
+.card-pick-list { overflow-y: auto; padding-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.card-pick-item { display: flex; flex-direction: column; padding: 6px 8px; border-radius: 8px; text-align: left; }
+.card-pick-item:hover { background: var(--accent-ghost-2); }
+.card-pick-empty { color: var(--ink-4); font-size: 0.86rem; padding: 8px; }

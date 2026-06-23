@@ -23,6 +23,8 @@ function card(
     notes: opts.notes ?? "",
     due: opts.dueInDays == null ? null : isoIn(opts.dueInDays),
     labels: opts.labels ?? [],
+    blockedBy: [],
+    parent: null,
     comments: (opts.comments ?? []).map((text, i) => ({
       id: uid("cm"),
       author: "You",
@@ -161,6 +163,18 @@ export function seedWorld(): WorldState {
       ],
     },
   ];
+
+  // Demo relationships: a dependency (blocked-by) and a parent with subtasks.
+  const all = boards.flatMap((b) => b.columns).flatMap((c) => c.cards);
+  const byTitle = (t: string) => all.find((k) => k.title.includes(t));
+  const valuation = byTitle("Chase valuation report");
+  const payslips = byTitle("Upload last 3 payslips");
+  if (valuation && payslips) valuation.blockedBy.push(payslips.id); // can't chase until payslips are in
+  const schema = byTitle("SQLite schema");
+  const drag = byTitle("Drag a card between boards");
+  const skeleton = byTitle("Deno server skeleton"); // already in Done → 1 of 2 subtasks done
+  if (schema && drag) drag.parent = schema.id;
+  if (schema && skeleton) skeleton.parent = schema.id;
 
   return { boards };
 }

@@ -6,8 +6,10 @@ import { dueLabel, dueStateOf } from "./core/due";
 import { closeCalendar, isCalendarOpen, openCalendar } from "./calendar";
 import { closeLabelSuggest, isLabelSuggestOpen, labelChip, labelInput } from "./filter";
 import { type Item, isMenuOpen, openMenu } from "./menu";
+import { closeCardPicker, isCardPickerOpen, openCardPicker, relatedCardRow } from "./relations";
+import { blockersOf, childProgress, childrenOf } from "./core/relations";
 import { playSound } from "./sound";
-import type { Card } from "./types";
+import type { Card, ID } from "./types";
 
 let backdrop: HTMLElement | null = null;
 let sheet: HTMLElement | null = null;
@@ -35,6 +37,7 @@ export function closeDetail() {
   flushDescription(); // persist any in-flight description edit before tearing down
   closeCalendar();
   closeLabelSuggest();
+  closeCardPicker();
   window.removeEventListener("keydown", onKey, true);
   backdrop?.remove();
   sheet.remove();
@@ -50,7 +53,7 @@ export function isDetailOpen() {
 function onKey(e: KeyboardEvent) {
   if (!sheet) return;
   // While a popover owns the keys, let it handle them (it closes on its own Esc).
-  if (isCalendarOpen() || isMenuOpen() || isLabelSuggestOpen()) return;
+  if (isCalendarOpen() || isMenuOpen() || isLabelSuggestOpen() || isCardPickerOpen()) return;
   const typing = isField(e.target);
   if (e.key === "Escape") {
     const t = e.target as HTMLElement | null;
@@ -181,6 +184,16 @@ function rebuild() {
         const items: Item[] = [];
         if (!card.due) items.push({ label: "Due date", icon: "calendar", run: () => openCalendar(addBtn, null, setDue) });
         items.push({ label: "Label", icon: "tag", run: () => { editingNotes = false; addingLabel = true; rebuild(); } });
+        items.push({ label: "Blocked by…", icon: "blocked", run: () => openCardPicker(addBtn, {
+          exclude: new Set<ID>([card.id, ...card.blockedBy]),
+          placeholder: "Card that blocks this…",
+          onPick: (id) => { ctx.store.blockCard(card.id, id); rebuild(); },
+        }) });
+        items.push({ label: "Add subtask…", icon: "subtasks", run: () => openCardPicker(addBtn, {
+          exclude: new Set<ID>([card.id, ...childrenOf(ctx.store.world, card.id)]),
+          placeholder: "Card to make a subtask…",
+          onPick: (id) => { ctx.store.setParent(id, card.id); rebuild(); },
+        }) });
         openMenu(addBtn, items);
       },
     },
@@ -224,6 +237,43 @@ function rebuild() {
       setTimeout(() => editor.focus());
     }
     body.appendChild(labelsRow);
+  }
+
+  // relationships — parent, subtasks (with roll-up), and blockers. Added via "+".
+  const openCard = (id: ID) => { closeDetail(); ctx.setFocus(id, { reveal: true }); ctx.openDetail(id); };
+
+  if (card.parent) {
+    const pid = card.parent;
+    const row = relatedCardRow(pid, { icon: "subtasks", onOpen: () => openCard(pid), onRemove: () => { ctx.store.setParent(card.id, null); rebuild(); } });
+    if (row) {
+      const section = el("div", { class: "section rel-section", data: { testid: "card-detail-parent" } });
+      section.appendChild(el("div", { class: "section-h", text: "Parent" }));
+      section.appendChild(row);
+      body.appendChild(section);
+    }
+  }
+
+  const kids = childrenOf(ctx.store.world, card.id);
+  if (kids.length) {
+    const { done, total } = childProgress(ctx.store.world, card.id);
+    const section = el("div", { class: "section rel-section", data: { testid: "card-detail-subtasks" } });
+    section.appendChild(el("div", { class: "section-h" }, "Subtasks", el("span", { class: "rel-count", text: `${done}/${total}` })));
+    for (const id of kids) {
+      const row = relatedCardRow(id, { icon: "subtasks", showDone: true, onOpen: () => openCard(id), onRemove: () => { ctx.store.setParent(id, null); rebuild(); } });
+      if (row) section.appendChild(row);
+    }
+    body.appendChild(section);
+  }
+
+  const blockers = blockersOf(ctx.store.world, card);
+  if (blockers.length) {
+    const section = el("div", { class: "section rel-section", data: { testid: "card-detail-blockers" } });
+    section.appendChild(el("div", { class: "section-h", text: "Blocked by" }));
+    for (const { id } of blockers) {
+      const row = relatedCardRow(id, { icon: "blocked", showDone: true, onOpen: () => openCard(id), onRemove: () => { ctx.store.unblockCard(card.id, id); rebuild(); } });
+      if (row) section.appendChild(row);
+    }
+    body.appendChild(section);
   }
 
   // description — no header; the field's placeholder is its own call to action.

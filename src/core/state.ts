@@ -40,6 +40,18 @@ export function nextColumnOf(s: WorldState, cardId: ID): Column | null {
   return loc.board.columns[loc.colIndex + 1] ?? null;
 }
 
+/** Is `ancestorId` somewhere up the parent chain of `nodeId`? (cycle guard) */
+export function isAncestor(s: WorldState, ancestorId: ID, nodeId: ID): boolean {
+  const seen = new Set<ID>();
+  let cur = findCard(s, nodeId)?.card.parent ?? null;
+  while (cur && !seen.has(cur)) {
+    if (cur === ancestorId) return true;
+    seen.add(cur);
+    cur = findCard(s, cur)?.card.parent ?? null;
+  }
+  return false;
+}
+
 const clampIndex = (i: number, len: number) => Math.max(0, Math.min(i, len));
 
 /**
@@ -134,9 +146,39 @@ export function applyOp(s: WorldState, op: Op): WorldState {
       }
       break;
     }
+    case "blockCard": {
+      const a = findCard(s, op.id)?.card;
+      if (a && op.id !== op.by && findCard(s, op.by) && !a.blockedBy.includes(op.by)) a.blockedBy.push(op.by);
+      break;
+    }
+    case "unblockCard": {
+      const a = findCard(s, op.id)?.card;
+      if (a) a.blockedBy = a.blockedBy.filter((x) => x !== op.by);
+      break;
+    }
+    case "setParent": {
+      const a = findCard(s, op.id)?.card;
+      if (!a) break;
+      if (op.parent === null) a.parent = null;
+      // must exist, not self, and not a descendant (no cycles)
+      else if (op.parent !== op.id && findCard(s, op.parent) && !isAncestor(s, op.id, op.parent)) a.parent = op.parent;
+      break;
+    }
     case "deleteCard": {
       const loc = findCard(s, op.id);
-      if (loc) loc.column.cards.splice(loc.cardIndex, 1);
+      if (loc) {
+        loc.column.cards.splice(loc.cardIndex, 1);
+        // drop dangling references to the deleted card
+        for (const b of s.boards) {
+          for (const c of b.columns) {
+            for (const k of c.cards) {
+              const bi = k.blockedBy.indexOf(op.id);
+              if (bi >= 0) k.blockedBy.splice(bi, 1);
+              if (k.parent === op.id) k.parent = null;
+            }
+          }
+        }
+      }
       break;
     }
     case "addComment": {

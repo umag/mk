@@ -3,7 +3,7 @@ import type { Board, Card, WorldState } from "../src/types";
 import { applyOp, findCard, nextColumnOf } from "../src/core/state";
 
 const card = (id: string, title = id): Card => ({
-  id, title, notes: "", due: null, labels: [], comments: [], enteredColumnAt: 0,
+  id, title, notes: "", due: null, labels: [], blockedBy: [], parent: null, comments: [], enteredColumnAt: 0,
 });
 
 function world(): WorldState {

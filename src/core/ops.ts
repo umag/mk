@@ -21,6 +21,9 @@ export type Op =
   | { t: "addCard"; columnId: ID; index: number; card: Card }
   | { t: "updateCard"; id: ID; patch: Partial<Card> }
   | { t: "moveCard"; id: ID; toColumnId: ID; index: number; at: number }
+  | { t: "blockCard"; id: ID; by: ID }
+  | { t: "unblockCard"; id: ID; by: ID }
+  | { t: "setParent"; id: ID; parent: ID | null }
   | { t: "deleteCard"; id: ID }
   | { t: "addComment"; cardId: ID; comment: Comment };
 

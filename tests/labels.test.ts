@@ -14,7 +14,7 @@ import { ARCHIVE_BOARD_ID } from "../src/core/done";
 import type { Card, WorldState } from "../src/types";
 
 const card = (id: string, labels: string[] = []): Card => ({
-  id, title: id, notes: "", due: null, labels, comments: [], enteredColumnAt: 0,
+  id, title: id, notes: "", due: null, labels, blockedBy: [], parent: null, comments: [], enteredColumnAt: 0,
 });
 
 describe("normalizeLabel", () => {

@@ -17,7 +17,7 @@ what a change means.
 ```
 Board  { id, title, x, y, columns: Column[] }
 Column { id, name, wip: number|null, cards: Card[] }
-Card   { id, title, notes, due: "YYYY-MM-DD"|null, labels: string[], comments: Comment[], enteredColumnAt: number(ms) }
+Card   { id, title, notes, due: "YYYY-MM-DD"|null, labels: string[], blockedBy: id[], parent: id|null, comments: Comment[], enteredColumnAt: number(ms) }
 Comment{ id, author, at, text }
 ```
 
@@ -47,6 +47,9 @@ REST resources are returned enriched with their location, e.g. a **card view**:
 | `POST` | `/api/cards/:id/move` | `{ toColumnId, index? }` | card view |
 | `POST` | `/api/cards/:id/advance` | — | card view · `409` if last column |
 | `POST` | `/api/cards/:id/comments` | `{ text, author? }` | `201` comment |
+| `POST` | `/api/cards/:id/block` | `{ by }` | card view — mark blocked by another card |
+| `POST` | `/api/cards/:id/unblock` | `{ by }` | card view |
+| `POST` | `/api/cards/:id/parent` | `{ parent: id\|null }` | card view — set/clear parent (subtask) |
 
 The server mints `id`, `enteredColumnAt`, and comment `id`/`at`. `due` accepts an
 ISO date string or `null`. `index` defaults to `0` (top of the column). `labels`

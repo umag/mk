@@ -260,6 +260,8 @@ Deno.serve({ port: PORT }, async (req) => {
             notes: body.notes ?? "",
             due: body.due ?? null,
             labels: Array.isArray(body.labels) ? sanitizeLabels(body.labels) : [],
+            blockedBy: [],
+            parent: null,
             comments: [],
             enteredColumnAt: Date.now(),
           };
@@ -312,6 +314,25 @@ Deno.serve({ port: PORT }, async (req) => {
           const comment = { id: mkId("cm"), author: body.author ?? "You", at: formatNow(), text: body.text.trim() };
           commit([{ t: "addComment", cardId: id, comment }]);
           return json(comment, 201);
+        }
+        if (sub === "block") {
+          const body = (await req.json()) as { by?: string };
+          if (!body.by || !findCard(state, body.by)) return json({ error: "unknown 'by' card" }, 400);
+          commit([{ t: "blockCard", id, by: body.by }]);
+          return json(cardView(id));
+        }
+        if (sub === "unblock") {
+          const body = (await req.json()) as { by?: string };
+          if (!body.by) return json({ error: "'by' required" }, 400);
+          commit([{ t: "unblockCard", id, by: body.by }]);
+          return json(cardView(id));
+        }
+        if (sub === "parent") {
+          const body = (await req.json()) as { parent?: string | null };
+          const parent = body.parent ?? null;
+          if (parent !== null && !findCard(state, parent)) return json({ error: "unknown parent" }, 400);
+          commit([{ t: "setParent", id, parent }]); // reducer guards self/cycles
+          return json(cardView(id));
         }
       }
     }

@@ -19,6 +19,11 @@ export interface Card {
   due: string | null;
   /** Free-form colour-coded tags. Colour is derived from the text (see core/labels.ts). */
   labels: string[];
+  /** Ids of cards that block this one (a dependency). "Blocked" is derived: a
+   *  blocker stops counting once it reaches a done column / the archive. */
+  blockedBy: ID[];
+  /** Parent card id for hierarchy (subtasks). null = top-level. */
+  parent: ID | null;
   comments: Comment[];
   /** When the card entered its current column — powers the "time in column" metric. */
   enteredColumnAt: number;

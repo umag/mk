@@ -75,7 +75,7 @@ wholesale (we already do a version of it):
 | Element | Kaiten behavior | micro-kaiten echo |
 |---|---|---|
 | **Срок** (deadline) | gray = time left · yellow = due today · red = overdue · green = completed on time | `--ink` due dot → `--due` (warm) soon → `--hot` (red) overdue → `--done` (sage) complete |
-| **Блокировка** (blocker) | bright red badge — **"яркая красная плашка"** — optionally names the blocking card | — (we have no blockers yet; red is reserved for overdue) |
+| **Блокировка** (blocker) | bright red badge — **"яркая красная плашка"** — optionally names the blocking card | a calm advisory **⊘ Blocked** ink badge (never red); the block auto-resolves once the blocker is done |
 | **Застоявшаяся карточка** (stale card) | red icon, bottom-right corner, when a card sits in one stage too long | analogue: our card-detail "time-in-column" metric |
 | **WIP-лимит** breach | the **entire column turns red** when the limit is exceeded | optional `WIP n` chip; column-level warning is a candidate feature |
 | **Обязательные поля** (required fields) | highlighted in color; a warning shows on the card facade when empty | quick-add validation surface |

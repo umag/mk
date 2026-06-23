@@ -79,9 +79,9 @@ vermillion, which read as an alarm. **Clean treatment — no CRT bloom, no scanl
 - Exactly one accent hue (amber = *action*). Red (`--hot`) appears *only* on overdue — not on
   due-today, not on a WIP-breach, not on a stale card. Sage (`--done`) *only* on completion.
   Everything else is surface + ink.
-- **Calm state signals.** Advisory states (a WIP column over its limit, a card gone stale) are
-  signalled by a **contrast jump** — faint ink → full `--ink` + weight + a subtle neutral lift
-  — never by a new hue. Full-contrast ink is the loudest a non-urgent signal ever gets. Color
+- **Calm state signals.** Advisory states (a WIP column over its limit, a card gone stale, **a
+  blocked card**) are signalled by a **contrast jump** — faint ink → full `--ink` + weight + a
+  subtle neutral lift — never by a new hue. Full-contrast ink is the loudest a non-urgent signal ever gets. Color
   is reserved for genuine urgency (overdue) and the one action accent.
 - Inactive/disabled states never carry full-saturation accent.
 - Tinted neutrals lean very slightly warm (hue 80–85, chroma ≤ 0.01) — the warmth lives in the
@@ -191,19 +191,30 @@ selected. Same shape, same vocabulary everywhere.
   (right). Nothing shifts as text changes — the card is a fixed size and its fields are anchored,
   not text-driven. When a due is set the whole card is tinted by deadline state: a calm warm
   border for soon/today, a faint red border + wash for overdue (red `--hot` is overdue-only).
-  Cards carry *title · due · comments* only — **no labels/tags, and no per-card advance button**.
-  Bare http(s) URLs in the title (and in detail notes) render as **clickable amber links**
-  (`a.link`, open in a new tab); the link swallows the click so it never drags or opens the card.
+  Cards carry *title · labels · due · comments*, plus calm relationship signals when present — a
+  **⊘ Blocked** badge (advisory ink, never red) and a **subtask roll-up** (`done/total`). Labels are
+  colour-coded chips with the hue derived from the text (restraint, not chip-soup); there is **no
+  per-card advance button**. Bare http(s) URLs in the title (and in detail notes) render as
+  **clickable amber links** (`a.link`, open in a new tab); the link swallows the click so it never
+  drags or opens the card.
 - **Advance** — advancing is **implied, not a button on every card**: focus a card and press `A`
   (`⇧A` = instant), surfaced in the HUD. The card-detail sheet holds the one advance control —
   an **arrow + the (truncated) next-column name** + `A` hint (e.g. `→ Triaged`), never a wordy
   "Advance to …".
-- **Card detail sheet** — centered editorial sheet over a blurred, dimmed canvas. Header:
-  breadcrumb (`Board / Column · card #`) + key hints (`E` edit, `⏎` advance) + close. Body:
-  Fraunces title; a meta bar with **due** and a **time-in-column** metric and a prominent
-  **`→ {Next}` advance** button (arrow + truncated next-column name + `A`); a **Notes** section (markdown body — the "card content"
-  priority); a **Comments** thread with avatars + timestamps and a `⌘⏎` composer. (Card detail
-  is the one allowed "modal" — it's a focused peek, not a flow blocker.)
+- **Card detail sheet** — a **two-column** editorial sheet over a blurred, dimmed canvas. Left =
+  the main content: Fraunces title; a meta bar with **due**, a **time-in-column** metric and a
+  prominent **`→ {Next}` advance** button; **labels**; **relationships** (Parent · Subtasks with a
+  done/total roll-up · Blocked-by); and a **Description** whose placeholder is its own call to action
+  (markdown, autosaved as you type — never on blur, so copy/paste keeps edit mode). Right = a
+  **comments** panel with a `⌘⏎` composer pinned at its foot. A single **`+`** adds the things a card
+  doesn't have yet (due date · label · blocker · subtask) via bespoke pickers, and empty fields
+  aren't shown. (Card detail is the one allowed "modal" — a focused peek, not a flow blocker.)
+- **Relationships** — cards relate two ways: **dependencies** (a card is *blocked by* others; the
+  block **auto-resolves** once a blocker reaches a done column / the archive — no manual unblock, and
+  signalled by the calm advisory badge, never red) and **parent/child subtasks** (a parent rolls up
+  `done/total`, done children struck through). Both are added from the detail `+` via a bespoke
+  **card picker** (search by title), shown as navigable rows (click to pan to the card), with
+  self/cycle guards.
 - **Date picker** — a **bespoke** calendar popover (never the browser's native control, which
   can't be themed). Opens under the due field on `--panel-hi` with `--sh-pop`; mono numerals,
   Monday-start week, amber-fill on the selected day, `--accent` text on today, dimmed `--ink-4`
@@ -287,10 +298,11 @@ paths the maker does. Borrowed from Kaiten's clean DOM contract (`research/kaite
 ## Anti-patterns (what micro-kaiten never does)
 
 - Inner scrollbars on boards or columns (scroll is canvas-level only).
-- Labels/tags/colored chip soup on cards.
+- Chip *soup* on cards — many loud tags competing for the eye. (Calm, hue-from-text labels and a
+  single advisory **Blocked** badge are restraint, not absence.)
 - Loud or alarming color; saturated accents on idle/disabled states; red anywhere but overdue.
-- Red (or any new hue) on a WIP-breach, a stale card, or due-today — advisory states stay calm
-  (a contrast jump, never an alarm color). Red is overdue-only.
+- Red (or any new hue) on a WIP-breach, a stale card, a **blocked card**, or due-today — advisory
+  states stay calm (a contrast jump, never an alarm color). Red is overdue-only.
 - Side-stripe accent borders, gradient text, decorative glassmorphism, hero-metric templates,
   identical icon-card grids, tracked all-caps eyebrows on every section.
 - Modal-first flows (card detail is the single, deliberate exception).
@@ -310,7 +322,8 @@ captured in `research/`. The findings *confirmed* the direction rather than redi
   `+`, the active tab, badges. We keep the *one-accent* discipline; the hue diverges (amber,
   warm/editorial) by choice.
 - **Clean cards survive density.** A real 37-card board showed just title + a small avatar — no
-  chip soup. Our *content · due · comments* facade clears the same bar.
+  chip soup. Our calm facade (content · labels · due · comments, plus advisory blocked/subtask
+  signals) clears the same bar.
 - **Advance exists, but buried.** Kaiten's "→ next column" pill hides in the card-detail modal;
   we make advance the board's *heartbeat* (focused-card button + `⏎`). That is our signature edge.
 
