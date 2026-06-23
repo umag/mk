@@ -1,7 +1,7 @@
 import { clear, el, svg } from "./dom";
 import { icons, type IconName } from "./icons";
 import { ctx } from "./context";
-import { computeBoardSpot } from "./render";
+import { collapseAllBoards, computeBoardSpot } from "./render";
 import { isArchiveBoard } from "./core/done";
 import { collectLabels } from "./core/labels";
 import { clearLabelFilter, setLabelFilter } from "./filter";
@@ -116,6 +116,8 @@ function buildAll(): Cmd[] {
         ctx.requestColumnRename(b.columns[0]!.id);
       } },
       { group: "Actions", icon: "jump", label: "Zoom to fit", sub: "Frame every board", run: () => { closePalette(); fitAll(); } },
+      { group: "Actions", icon: "chevronUp", label: "Collapse all boards", sub: "Fold every board to a bar", run: () => { closePalette(); collapseAllBoards(); } },
+      { group: "Actions", icon: "chevronDown", label: "Expand all boards", sub: "Unfold every board", run: () => { closePalette(); s.setAllBoardsCollapsed(false); } },
       { group: "Actions", icon: "box", label: "Go to Archive", sub: "Done cards land here after 10 days", run: () => { closePalette(); enterArchive(); } },
     ];
   for (const b of s.world.boards) {

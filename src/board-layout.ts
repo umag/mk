@@ -121,3 +121,50 @@ export function relaxOverlaps(
   }
   return changed;
 }
+
+/**
+ * "Magnet": pull boards toward the anchor corner, closing gaps without overlap —
+ * used when a board folds and frees space, so the neighbours slide in. The anchor
+ * stays put; every other board is pulled up then left as far as it can go,
+ * iterating to a stable spot. A board only stacks on another that *genuinely*
+ * shares its lane (real axis overlap, not merely within the gap), so a
+ * side-by-side layout stays side-by-side. Returns only the boards that moved.
+ */
+export function compactToAnchor(
+  boards: Array<Rect & { id: string }>,
+  gap: number,
+  origin: { x: number; y: number },
+): Map<string, { x: number; y: number }> {
+  const changed = new Map<string, { x: number; y: number }>();
+  if (boards.length === 0) return changed;
+  const ai = anchorIndex(boards);
+  const placed: Rect[] = [];
+  if (ai >= 0) {
+    const a = boards[ai]!;
+    placed.push({ x: a.x, y: a.y, w: a.w, h: a.h }); // anchor is immovable
+  }
+  const others = boards
+    .filter((_, i) => i !== ai)
+    .sort((a, b) => (a.y + a.x) - (b.y + b.x) || a.y - b.y || a.x - b.x);
+  for (const b of others) {
+    let x = Math.max(b.x, origin.x);
+    let y = Math.max(b.y, origin.y);
+    for (let iter = 0; iter < 8; iter++) {
+      const px = x, py = y;
+      // pull up: just below boards that genuinely share our vertical lane
+      let ny = origin.y;
+      for (const p of placed) if (x < p.x + p.w && x + b.w > p.x) ny = Math.max(ny, p.y + p.h + gap);
+      y = ny;
+      // pull left: just right of boards that genuinely share our horizontal lane
+      let nx = origin.x;
+      for (const p of placed) if (y < p.y + p.h && y + b.h > p.y) nx = Math.max(nx, p.x + p.w + gap);
+      x = nx;
+      if (x === px && y === py) break;
+    }
+    x = Math.round(x);
+    y = Math.round(y);
+    placed.push({ x, y, w: b.w, h: b.h });
+    if (x !== b.x || y !== b.y) changed.set(b.id, { x, y });
+  }
+  return changed;
+}

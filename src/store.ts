@@ -188,10 +188,19 @@ export class Store {
     this.commit({ t: "renameBoard", id, title });
   }
 
-  setBoardCollapsed(id: ID, collapsed: boolean) {
+  setBoardCollapsed(id: ID, collapsed: boolean, w?: number) {
     const b = this.findBoard(id);
     if (!b || !!b.collapsed === collapsed) return;
-    this.commit({ t: "setBoardCollapsed", id, collapsed });
+    this.commit({ t: "setBoardCollapsed", id, collapsed, w });
+  }
+
+  /** Unfold every real (non-Archive) board at once. (Folding-all keeps each width,
+   *  so it's driven from the renderer where the DOM widths are measured.) */
+  setAllBoardsCollapsed(collapsed: boolean) {
+    for (const b of this.world.boards) {
+      if (b.id === ARCHIVE_BOARD_ID || !!b.collapsed === collapsed) continue;
+      this.commit({ t: "setBoardCollapsed", id: b.id, collapsed });
+    }
   }
 
   deleteBoard(id: ID) {

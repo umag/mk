@@ -3,6 +3,7 @@ import {
   anchorIndex,
   BOARD_GAP,
   clampInsideOrigin,
+  compactToAnchor,
   originOf,
   type Rect,
   rectsOverlap,
@@ -11,6 +12,40 @@ import {
 } from "../src/board-layout";
 
 const r = (x: number, y: number, w = 100, h = 100): Rect => ({ x, y, w, h });
+
+describe("compactToAnchor (magnet)", () => {
+  const gap = 28;
+  // anchor (tall, left) + a right column: top, a short folded 'mid', and 'bot'
+  // sitting far below with a gap above it.
+  const boards = [
+    { id: "anchor", x: 0, y: 0, w: 200, h: 600 },
+    { id: "top", x: 240, y: 0, w: 200, h: 200 },
+    { id: "mid", x: 240, y: 260, w: 200, h: 40 },
+    { id: "bot", x: 240, y: 520, w: 200, h: 200 },
+  ];
+
+  it("keeps the anchor fixed and pulls the column up to close the gap", () => {
+    const changed = compactToAnchor(boards, gap, originOf(boards));
+    expect(changed.has("anchor")).toBe(false); // immovable
+    expect(changed.get("bot")).toEqual({ x: 228, y: 296 }); // slid up from y=520
+  });
+
+  it("keeps side-by-side boards side-by-side (no stacking under the anchor)", () => {
+    const changed = compactToAnchor(boards, gap, originOf(boards));
+    // the column tightens to the anchor's right edge + gap, not below it
+    expect(changed.get("top")).toEqual({ x: 228, y: 0 });
+  });
+
+  it("never leaves boards overlapping", () => {
+    const changed = compactToAnchor(boards, gap, originOf(boards));
+    const final = boards.map((b) => ({ ...b, ...(changed.get(b.id) ?? {}) }));
+    for (let i = 0; i < final.length; i++) {
+      for (let j = i + 1; j < final.length; j++) {
+        expect(rectsOverlap(final[i]!, final[j]!, 0)).toBe(false);
+      }
+    }
+  });
+});
 
 describe("rectsOverlap", () => {
   it("detects overlap and respects the gap", () => {

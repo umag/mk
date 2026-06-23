@@ -1,7 +1,7 @@
 import { el } from "./dom";
 import { ctx } from "./context";
 import { playSound } from "./sound";
-import { anchorIndex, BOARD_GAP, clampInsideOrigin, originOf, type Rect, resolveOverlap } from "./board-layout";
+import { anchorIndex, BOARD_GAP, clampInsideOrigin, compactToAnchor, originOf } from "./board-layout";
 import { isArchiveBoard } from "./core/done";
 
 const THRESHOLD = 5;
@@ -237,24 +237,24 @@ function startBoardDrag(e: PointerEvent, head: HTMLElement) {
     window.removeEventListener("pointerup", up);
     boardEl.classList.remove("dragging");
     if (!dragging) return;
-    // snap clear of other boards (never overlap), staying inside the anchor corner
-    const moved: Rect = { x, y, w: boardEl.offsetWidth, h: boardEl.offsetHeight };
-    const others = otherBoardRects(boardEl);
-    const resolved = resolveOverlap(moved, others, BOARD_GAP, 64, origin);
-    ctx.store.moveBoard(boardId, resolved.x, resolved.y);
+    // No free-floating: pack every board toward the anchor corner (left + up),
+    // taking the dragged board at its drop spot, then snap with a magnet clack.
+    const dropped = { x: Math.round(x), y: Math.round(y) };
+    const rects = [...ctx.world.querySelectorAll<HTMLElement>(".board")]
+      .map((bEl) => {
+        const id = bEl.dataset.boardId ?? "";
+        const b = ctx.store.findBoard(id);
+        if (!b || isArchiveBoard(b)) return null;
+        const pos = id === boardId ? dropped : { x: b.x, y: b.y };
+        return { id, x: pos.x, y: pos.y, w: bEl.offsetWidth, h: bEl.offsetHeight };
+      })
+      .filter((r): r is { id: string; x: number; y: number; w: number; h: number } => r !== null);
+    const changed = compactToAnchor(rects, BOARD_GAP, originOf(rects));
+    ctx.store.moveBoard(boardId, changed.get(boardId)?.x ?? dropped.x, changed.get(boardId)?.y ?? dropped.y);
+    changed.forEach((pos, id) => { if (id !== boardId) ctx.store.moveBoard(id, pos.x, pos.y); });
+    playSound("magnet");
   };
 
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", up);
-}
-
-/** World-coord rects of every board except the one being dragged. */
-function otherBoardRects(exclude: HTMLElement): Rect[] {
-  const out: Rect[] = [];
-  ctx.world.querySelectorAll<HTMLElement>(".board").forEach((e) => {
-    if (e === exclude) return;
-    const b = ctx.store.findBoard(e.dataset.boardId ?? "");
-    if (b) out.push({ x: b.x, y: b.y, w: e.offsetWidth, h: e.offsetHeight });
-  });
-  return out;
 }

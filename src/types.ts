@@ -46,6 +46,8 @@ export interface Board {
   columns: Column[];
   /** Folded to just its header (title + card count) to reclaim canvas space. */
   collapsed?: boolean;
+  /** Width (px) to keep while folded, captured when collapsed (the board's length). */
+  foldW?: number;
 }
 
 export interface WorldState {

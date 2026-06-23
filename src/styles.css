@@ -314,7 +314,9 @@ kbd {
 .board.is-collapsed .board-collapse { opacity: 1; }
 .board-collapse:hover { background: var(--card); color: var(--ink-2); }
 .board-collapse svg { width: 16px; height: 16px; }
-/* folded board: the header is the whole board — round it off, drop the divider */
+
+/* folded board = a horizontal bar keeping the board's width (width set inline in render);
+   the header is the whole board — round it off, drop the divider. */
 .board.is-collapsed > .board-head { border-bottom: none; border-radius: var(--r); }
 
 .board-cols { display: flex; gap: 14px; padding: 15px; align-items: stretch; }

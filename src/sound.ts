@@ -1,7 +1,7 @@
 // Procedural, asset-free sound — short organic textures (wood / paper / leather)
 // synthesized with the Web Audio API. Subtle by design; toggle with mute.
 
-type Kind = "add" | "advance" | "pickup" | "drop" | "delete" | "open";
+type Kind = "add" | "advance" | "pickup" | "drop" | "delete" | "open" | "magnet";
 
 let actx: AudioContext | null = null;
 let muted = false;
@@ -93,6 +93,10 @@ export function playSound(kind: Kind) {
       break;
     case "open": // soft paper turn
       noise(c, t, { dur: 0.12, type: "lowpass", freq: 1400, freqTo: 800, gain: 0.07, attack: 0.01 });
+      break;
+    case "magnet": // boards snap together — a soft magnetic clack
+      tone(c, t, { dur: 0.10, freq: 190, freqTo: 120, type: "triangle", gain: 0.17 });
+      noise(c, t, { dur: 0.035, type: "bandpass", freq: 2400, q: 1.5, gain: 0.06, attack: 0.002 });
       break;
   }
 }

@@ -77,7 +77,10 @@ export function applyOp(s: WorldState, op: Op): WorldState {
     }
     case "setBoardCollapsed": {
       const b = findBoard(s, op.id);
-      if (b) b.collapsed = op.collapsed;
+      if (b) {
+        b.collapsed = op.collapsed;
+        if (op.collapsed && typeof op.w === "number") b.foldW = op.w; // remember the width to keep
+      }
       break;
     }
     case "deleteBoard": {

@@ -163,6 +163,15 @@ anchor); notes `1.0`/1.62 line-height; comment body `0.96`; meta/mono `0.74–0.
   of the drag grip. Every other board is **clamped** to the anchor's corner — you can't drag a
   board above or left of it; boards only ever fan out to the **right and below**, snapping clear
   of each other (never overlapping). Panning can't reveal void above or left of the anchor.
+- **No free-floating — boards magnet to the corner.** Dropping a board (or folding/unfolding one)
+  packs the layout **toward the anchor (up + left)**, closing gaps, with a soft *magnet* clack. You
+  float freely **while dragging**; the snap happens on release. Boards in genuinely different lanes
+  stay side-by-side (the pack doesn't stack everything into one column).
+- **Fold a board to a horizontal bar** that **keeps its width**: a `^` chevron collapses it to its
+  header (title + card count, `⌄` to unfold), freeing canvas *height* so the boards below magnet up.
+  The folded width is remembered (persisted) so the bar stays the board's length. `⌘K → Collapse all
+  boards` / `Expand all boards` does the whole canvas at once. Folded bars are still draggable; the
+  Archive is never foldable.
 - A **minimap** (bottom-right) shows board rectangles + the current viewport; thin **canvas
   scrollbars** ride the right/bottom edges. A zoom indicator lives in the top bar.
 

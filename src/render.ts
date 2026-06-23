@@ -9,7 +9,8 @@ import { cardMatchesFilter } from "./core/labels";
 import { childIndex, isBlocked, isCardDone } from "./core/relations";
 import { labelChip, toggleLabelFilter, updateFilterBar } from "./filter";
 import { boardRectsNow, invalidateScene } from "./canvas";
-import { anchorIndex, BOARD_GAP, originOf, relaxOverlaps } from "./board-layout";
+import { playSound } from "./sound";
+import { anchorIndex, BOARD_GAP, compactToAnchor, originOf, relaxOverlaps } from "./board-layout";
 import type { Board, Card, Column, DueState, ID } from "./types";
 
 // parent → children, rebuilt once per world render so the facade can show
@@ -112,6 +113,31 @@ function scheduleRelax() {
   });
 }
 
+// "Magnet": when a board folds it frees space, so pull the others toward the
+// anchor to close the gap (then a soft clack). Runs once after the fold's render,
+// so the folded board is already measured at its small size.
+let magnetScheduled = false;
+export function requestBoardMagnet() {
+  if (magnetScheduled) return;
+  magnetScheduled = true;
+  requestAnimationFrame(() => {
+    magnetScheduled = false;
+    if (ctx.world.querySelector(".board.dragging")) return;
+    const boards = [...ctx.world.querySelectorAll<HTMLElement>(".board")]
+      .map((e) => {
+        const b = ctx.store.findBoard(e.dataset.boardId ?? "");
+        return b ? { id: b.id, x: b.x, y: b.y, w: e.offsetWidth, h: e.offsetHeight } : null;
+      })
+      .filter((r): r is { id: string; x: number; y: number; w: number; h: number } => r !== null);
+    if (boards.length < 2) return;
+    const changed = compactToAnchor(boards, BOARD_GAP, originOf(boards));
+    if (changed.size) {
+      changed.forEach((pos, id) => ctx.store.moveBoard(id, pos.x, pos.y));
+      playSound("magnet");
+    }
+  });
+}
+
 function buildBoard(board: Board): HTMLElement {
   const total = board.columns.reduce((n, c) => n + visibleCards(board, c).length, 0);
   const flow = board.columns.map((c) => c.name.toLowerCase()).join(" → ");
@@ -141,7 +167,14 @@ function buildBoard(board: Board): HTMLElement {
       attrs: { "aria-label": board.collapsed ? "Unfold board" : "Fold board", title: board.collapsed ? "Unfold" : "Fold" },
       on: {
         pointerdown: (e: MouseEvent) => e.stopPropagation(),
-        click: (e: MouseEvent) => { e.stopPropagation(); ctx.store.setBoardCollapsed(board.id, !board.collapsed); },
+        click: (e: MouseEvent) => {
+          e.stopPropagation();
+          if (board.collapsed) { ctx.store.setBoardCollapsed(board.id, false); return; }
+          // fold to a horizontal bar but keep the board's width, then magnet the rest in
+          const w = (e.currentTarget as HTMLElement).closest<HTMLElement>(".board")?.offsetWidth;
+          ctx.store.setBoardCollapsed(board.id, true, w);
+          requestBoardMagnet();
+        },
       },
     }, svg(board.collapsed ? icons.chevronDown : icons.chevronUp)),
     archive ? null : el("button", {
@@ -155,7 +188,9 @@ function buildBoard(board: Board): HTMLElement {
     }, svg(icons.more)),
   );
 
-  const section = el("section", { class: `board${isAnchor ? " is-anchor" : ""}${archive ? " is-archive" : ""}${board.collapsed ? " is-collapsed" : ""}`, data: { boardId: board.id, testid: "board" }, style: { "--bx": `${board.x}px`, "--by": `${board.y}px` } as Record<string, string> }, head);
+  const style: Record<string, string> = { "--bx": `${board.x}px`, "--by": `${board.y}px` };
+  if (board.collapsed && board.foldW) style.width = `${board.foldW}px`; // keep its length when folded
+  const section = el("section", { class: `board${isAnchor ? " is-anchor" : ""}${archive ? " is-archive" : ""}${board.collapsed ? " is-collapsed" : ""}`, data: { boardId: board.id, testid: "board" }, style }, head);
 
   if (!board.collapsed) {
     const cols = el("div", { class: "board-cols" });
@@ -179,6 +214,17 @@ function buildBoard(board: Board): HTMLElement {
   }
 
   return section;
+}
+
+/** Fold every real board to a bar, each keeping its width (measured here), then magnet. */
+export function collapseAllBoards() {
+  const widths = new Map<string, number>();
+  for (const e of ctx.world.querySelectorAll<HTMLElement>(".board")) {
+    const b = ctx.store.findBoard(e.dataset.boardId ?? "");
+    if (b && !isArchiveBoard(b) && !b.collapsed) widths.set(b.id, e.offsetWidth);
+  }
+  for (const [id, w] of widths) ctx.store.setBoardCollapsed(id, true, w);
+  requestBoardMagnet();
 }
 
 function buildColumn(board: Board, column: Column, index: number): HTMLElement {

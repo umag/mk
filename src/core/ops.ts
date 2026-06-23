@@ -10,7 +10,7 @@ export type Op =
   | { t: "addBoard"; board: Board }
   | { t: "moveBoard"; id: ID; x: number; y: number }
   | { t: "renameBoard"; id: ID; title: string }
-  | { t: "setBoardCollapsed"; id: ID; collapsed: boolean }
+  | { t: "setBoardCollapsed"; id: ID; collapsed: boolean; w?: number }
   | { t: "deleteBoard"; id: ID }
   | { t: "addColumn"; boardId: ID; index: number; column: Column }
   | { t: "renameColumn"; id: ID; name: string }
