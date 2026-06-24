@@ -1,6 +1,7 @@
 import { ctx } from "./context";
-import { exitArchive, isPaletteOpen } from "./palette";
+import { createBoard, exitArchive, isPaletteOpen, newCard } from "./palette";
 import { isDetailOpen } from "./detail";
+import { isMenuOpen } from "./menu";
 
 export function initKeyboard() {
   window.addEventListener("keydown", onKey);
@@ -12,7 +13,7 @@ function isTyping(t: EventTarget | null): boolean {
 }
 
 function onKey(e: KeyboardEvent) {
-  if (isPaletteOpen() || isDetailOpen()) return; // overlays own their keys
+  if (isPaletteOpen() || isDetailOpen() || isMenuOpen()) return; // overlays own their keys
 
   // Archive is a read-only view: only Esc (leave) and ⌘K work here.
   if (ctx.store.view.archiveOpen) {
@@ -39,8 +40,10 @@ function onKey(e: KeyboardEvent) {
       break;
     case "n":
     case "N":
+      // ⇧N makes a board; plain N (incl. CapsLock-N: key "N", shiftKey false) a card.
       e.preventDefault();
-      newCard();
+      if (e.shiftKey) createBoard();
+      else newCard();
       break;
     case "Enter":
     case "o":
@@ -88,17 +91,6 @@ function onKey(e: KeyboardEvent) {
       ctx.setFocus(null);
       break;
   }
-}
-
-function newCard() {
-  const s = ctx.store;
-  const id = s.view.focusedCardId;
-  if (id) {
-    const loc = s.findCard(id);
-    if (loc) return ctx.startCapture(loc.column.id);
-  }
-  const first = s.world.boards[0]?.columns[0];
-  if (first) ctx.startCapture(first.id);
 }
 
 function nav(dx: number, dy: number) {

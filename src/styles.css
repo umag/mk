@@ -173,6 +173,17 @@ kbd {
 .btn-primary:hover { background: oklch(0.83 0.095 73); border-color: oklch(0.83 0.095 73); color: var(--accent-ink); }
 .btn-primary kbd { background: oklch(0 0 0 / 0.16); color: var(--accent-ink); border-color: oklch(0 0 0 / 0.2); }
 
+/* "New ▾" creation menu — a de-emphasized (less bright) amber outline, not a filled
+   primary: it reads as the create action without the amber fill + glow of btn-primary. */
+.new-menu-btn {
+  gap: 6px;
+  border-color: var(--accent-2);
+  color: var(--accent);
+  font-weight: 600;
+}
+.new-menu-btn:hover { background: var(--accent-ghost); border-color: var(--accent); color: var(--accent); }
+.new-menu-btn .caret { width: 13px; height: 13px; opacity: 0.8; }
+
 .cmd-trigger {
   flex: 0 1 280px;
   justify-content: flex-start;
@@ -262,6 +273,9 @@ kbd {
   opacity: 0.5; /* picked-up: reads as in-flight vs the faint ghost destination */
 }
 .board.col-drop-board { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--sh-board); }
+/* The "active" board — where New card lands. A calm amber ring, quieter than a drag/drop state. */
+/* active board — a calm, dim GREENISH-AMBER ring (distinct hue from the pure-amber accent). */
+.board.is-focused { border-color: oklch(0.79 0.09 105 / 0.6); box-shadow: 0 0 0 1px oklch(0.79 0.09 105 / 0.3), var(--sh-board); }
 /* Landing preview while a board is dragged: where it magnets to on release. Same
    amber drop wash as .column.drop-target / .drop-placeholder (area fill, not focus). */
 .board-drop-ghost {
@@ -653,6 +667,9 @@ kbd {
 .menu-item.danger svg { color: var(--hot); }
 .menu-sep { height: 1px; background: var(--line-soft); margin: 5px 4px; }
 .menu-kbd { margin-left: auto; }
+/* muted target hint on a menu item (e.g. "→ Inbox" on New card) */
+.menu-hint { margin-left: auto; color: var(--ink-4); font: 0.78rem var(--mono); max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-hint + .menu-kbd { margin-left: 8px; }
 
 @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
 

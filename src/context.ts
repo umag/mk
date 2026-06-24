@@ -17,9 +17,12 @@ export interface Ctx {
   centerOn(x: number, y: number, w?: number, h?: number): void;
 
   setFocus(id: ID | null, opts?: { reveal?: boolean }): void;
+  /** Mark a board as the "active" one (where new cards land) and reflect it visually. */
+  setBoardFocus(id: ID | null): void;
   advance(id: ID, instant?: boolean): void;
   deleteCard(id: ID): void;
   requestColumnRename(columnId: ID): void;
+  requestBoardRename(boardId: ID): void;
   startCapture(columnId: ID, atTop?: boolean): void;
   openDetail(id: ID): void;
   closeDetail(): void;

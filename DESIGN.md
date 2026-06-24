@@ -59,7 +59,7 @@ Never lighter (lower-chroma greys) for body text. If contrast is close, move tow
 ### Accent — Lamplight Amber
 | Token | OKLCH | Role |
 |---|---|---|
-| `--accent` | `oklch(0.80 0.09 73)` | primary action: New card, armed advance button, active focus ring, quick-add ring, caret |
+| `--accent` | `oklch(0.80 0.09 73)` | primary action — **filled** in-context (armed advance button, calendar selected day, capture/quick-add ring, active focus ring, caret) and **outline** for the top-bar `New ▾` trigger (border + text, no fill); the top bar carries no filled amber primary |
 | `--accent-2` | `oklch(0.72 0.10 68)` | accent hover / "due soon" dot / button shadow tint |
 | `--accent-ink` | `oklch(0.24 0.03 70)` | text/icon on an accent fill (dark-on-amber, passes AA) |
 | `--accent-ghost` | `oklch(0.80 0.09 73 / 0.13)` | focus halo, soft accent fills, glow-pulse ring |
@@ -188,8 +188,14 @@ Every interactive element ships all of: default, hover, focus, active, disabled,
 selected. Same shape, same vocabulary everywhere.
 
 - **Top bar** — Fraunces wordmark `micro·kaiten` (accent on the italic "kaiten") + mono path;
-  the **New card** primary button (`+ New card  N`); a command/search field (`⌘K`); zoom.
-- **New card / quick capture** *(top-priority action)* — global `N` and the top-bar button both
+  the de-emphasized **`New ▾`** menu (amber outline, not a filled primary) — `New card` (`N`) ·
+  `New board` (`⇧N`) — reusing the shared dropdown; a command/search field (`⌘K`); zoom. The
+  `New ▾` trigger hides in the Archive (creation is meaningless there). `New card` lands in the
+  **active board** (the last board you clicked or focused a card in — marked with a calm amber
+  ring; falls back to the board named **Inbox**, then the first board); the menu item shows that
+  target as a muted `→ <board>` hint. `New board` creates the board, makes it active, and drops
+  straight into its **name** edit.
+- **New card / quick capture** *(top-priority action)* — global `N` and the `New ▾` menu both
   open capture instantly. Each board's first column carries an always-visible **quick-add**
   input; when active it gets the accent ring + blinking caret, and **stays focused after submit**
   so you can capture in a burst. **Paste a link** and the card appears at once with the URL as
@@ -240,8 +246,8 @@ selected. Same shape, same vocabulary everywhere.
   the minimap, and the palette's board/card lists. You reach it only via **⌘K → "Go to Archive"**;
   the top bar then reads `~/archive` with a `← Canvas` button, and `Esc` returns. The Archive is
   read-only (no add/menu/rename/drag, box glyph instead of the grip) — a quiet shelf, not a lane.
-- **Hotkey HUD** — persistent bottom-left bar listing the live keys: `N` new · `⏎` advance ·
-  `O` open · `J K` move · `Space` pan · `/` search. Keyboard-first is surfaced, not hidden.
+- **Hotkey HUD** — persistent bottom-left bar listing the live keys: `N` card · `⇧N` board ·
+  `⏎` advance · `O` open · `J K` move · `Space` pan · `/` search. Keyboard-first is surfaced, not hidden.
 - **kbd** — mono, 1px border with a 2px bottom border (keycap), on `--bg`.
 
 ---
@@ -301,7 +307,8 @@ paths the maker does. Borrowed from Kaiten's clean DOM contract (`research/kaite
   select on — never positional or class-based selectors for behaviour.
 - **`data-testid` for the e2e.** Every interactive node carries a stable `data-testid` naming
   *what kind* of control it is — `card`, `card-advance-button`, `column-menu-button`,
-  `new-card-button`, `command-palette-item`, `menu-item-<action>` (slugged from the label).
+  `new-menu-button`, `command-palette-item`, `menu-item-<action>` (slugged from the label, e.g.
+  `menu-item-new-card` / `menu-item-new-board`).
   Combined with the `data-*` ids above: testids say *what*, ids say *which*. Set them via the
   `el` helper's `data: { testid: … }` (lowercase key — `data-testId` would emit the wrong
   `data-test-id`). New controls get a testid when they're added, not retrofitted later.

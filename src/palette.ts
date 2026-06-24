@@ -6,6 +6,7 @@ import { isArchiveBoard } from "./core/done";
 import { collectLabels } from "./core/labels";
 import { clearLabelFilter, setLabelFilter } from "./filter";
 import { boardSnapOn, toggleBoardSnap } from "./settings";
+import type { Board } from "./types";
 
 /** Switch to the hidden Archive board and frame it. */
 export function enterArchive() {
@@ -36,6 +37,52 @@ export function exitArchive() {
       ctx.centerOn(b0.x, b0.y, elm?.offsetWidth ?? 280, elm?.offsetHeight ?? 220);
     });
   }
+}
+
+/**
+ * Create a board on the canvas, make it the active board, and open its NAME for
+ * renaming — the single source for board creation behind the New menu, the ⇧N
+ * shortcut, and the palette command. Palette-agnostic: callers close their own
+ * overlay (the palette command calls closePalette() first; the menu/keyboard paths
+ * have nothing to close). Defensive no-op in the Archive (every entry point already
+ * hides itself there, so exiting the archive here would only fight its re-centering).
+ */
+export function createBoard() {
+  const s = ctx.store;
+  if (s.view.archiveOpen) return;
+  const spot = computeBoardSpot();
+  const b = s.addBoard(spot.x, spot.y);
+  ctx.setBoardFocus(b.id);      // the new board becomes the active target for new cards
+  ctx.centerOn(b.x, b.y, 280, 220);
+  ctx.requestBoardRename(b.id); // land in the board-name edit, not a column
+}
+
+/**
+ * The board a new card should land in: the currently active board, else the board
+ * titled "Inbox", else the first real board. (Archive boards are never targets.)
+ */
+export function targetBoardForNewCard(): Board | null {
+  const s = ctx.store;
+  const real = (b: Board) => !isArchiveBoard(b);
+  const active = s.view.focusedBoardId ? s.findBoard(s.view.focusedBoardId) : null;
+  if (active && real(active)) return active;
+  const inbox = s.world.boards.find((b) => real(b) && b.title.trim().toLowerCase() === "inbox");
+  return inbox ?? s.world.boards.find(real) ?? null;
+}
+
+/**
+ * Start capturing a new card. A focused card means "capture next to it" — use its
+ * column. Otherwise drop into the target board's first column (active → Inbox → first).
+ */
+export function newCard() {
+  const s = ctx.store;
+  const id = s.view.focusedCardId;
+  if (id) {
+    const loc = s.findCard(id);
+    if (loc) return ctx.startCapture(loc.column.id);
+  }
+  const col = targetBoardForNewCard()?.columns[0];
+  if (col) ctx.startCapture(col.id);
 }
 
 interface Cmd {
@@ -109,13 +156,7 @@ function buildAll(): Cmd[] {
   const cmds: Cmd[] = s.view.archiveOpen
     ? [{ group: "Actions", icon: "board", label: "Back to canvas", sub: "Leave the Archive", run: () => { closePalette(); exitArchive(); } }]
     : [
-      { group: "Actions", icon: "plus", label: "New board", sub: "Add a board to the canvas", run: () => {
-        const spot = computeBoardSpot();
-        const b = s.addBoard(spot.x, spot.y);
-        closePalette();
-        ctx.centerOn(b.x, b.y, 280, 220);
-        ctx.requestColumnRename(b.columns[0]!.id);
-      } },
+      { group: "Actions", icon: "plus", label: "New board", sub: "Add a board to the canvas · ⇧N", run: () => { closePalette(); createBoard(); } },
       { group: "Actions", icon: "jump", label: "Zoom to fit", sub: "Frame every board", run: () => { closePalette(); fitAll(); } },
       { group: "Actions", icon: "chevronUp", label: "Collapse all boards", sub: "Fold every board to a bar", run: () => { closePalette(); collapseAllBoards(); } },
       { group: "Actions", icon: "chevronDown", label: "Expand all boards", sub: "Unfold every board", run: () => { closePalette(); s.setAllBoardsCollapsed(false); } },

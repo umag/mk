@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 // Feature: core board-canvas behaviours (capture, focus, delete, bounded canvas).
 
@@ -265,4 +265,200 @@ test.describe("Board canvas flows", () => {
     await expect(parent.getByTestId("card-subtasks")).toBeVisible(); // x/y on the facade
   });
 
+});
+
+// Feature: the "New ▾" top-bar menu — first-class, discoverable New card + New board.
+// (issue may-kaiten-add-board-control). RED until the menu replaces the New card button.
+test.describe("New ▾ creation menu", () => {
+  // Count only live canvas boards (the Archive board carries testid="board" too, but
+  // is only rendered while archiveOpen — exclude is-archive so the helper is stable
+  // even if called from archive view).
+  const boardCount = (page: Page) => page.locator('[data-testid="board"]:not(.is-archive)').count();
+
+  // Enter the hidden Archive via the command palette ("Go to Archive").
+  async function enterArchive(page: Page) {
+    await page.getByTestId("command-trigger").click();
+    await page.getByTestId("command-palette-input").fill("Archive");
+    await page.getByTestId("command-palette-item").filter({ hasText: "Go to Archive" }).first().click();
+    await expect(page.locator(".archive-back")).toBeVisible();
+  }
+
+  test("the New menu opens, labels both options, and closes on Escape", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    const trigger = page.getByTestId("new-menu-button");
+    await expect(trigger).toContainText("New"); // label is the discoverability signal
+    await trigger.click();
+    await expect(page.getByTestId("context-menu")).toBeVisible();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+    // both options present AND correctly labelled
+    await expect(page.getByTestId("menu-item-new-card")).toContainText("New card");
+    await expect(page.getByTestId("menu-item-new-board")).toContainText("New board");
+    // Escape dismisses the menu and clears the expanded state
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("context-menu")).toHaveCount(0);
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("New menu → New board adds a board and focuses its NAME edit", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    const before = await boardCount(page);
+    await page.getByTestId("new-menu-button").click();
+    await page.getByTestId("menu-item-new-board").click();
+    await expect(page.getByTestId("context-menu")).toHaveCount(0); // menu closes on select
+    await expect(page.getByTestId("new-menu-button")).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator('[data-testid="board"]:not(.is-archive)')).toHaveCount(before + 1);
+    // The new board's NAME (title) rename input opens and takes focus — NOT a column,
+    // NOT the trigger (guards focus-steal), and no stray card-capture.
+    const rename = page.getByTestId("board-rename-input");
+    await expect(rename).toBeVisible();
+    await expect(rename).toBeFocused();
+    await expect(page.getByTestId("column-rename-input")).toHaveCount(0);
+    await expect(page.getByTestId("capture-input")).toHaveCount(0);
+  });
+
+  test("New menu → New card starts a capture and closes the menu", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    await page.getByTestId("new-menu-button").click();
+    await page.getByTestId("menu-item-new-card").click();
+    await expect(page.getByTestId("context-menu")).toHaveCount(0);
+    await expect(page.getByTestId("new-menu-button")).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByTestId("capture-input")).toBeVisible();
+  });
+
+  test("⇧N adds a board (and does not also start a card capture)", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    const before = await boardCount(page);
+    await page.keyboard.press("Shift+N");
+    await expect(page.locator('[data-testid="board"]:not(.is-archive)')).toHaveCount(before + 1);
+    const rename = page.getByTestId("board-rename-input");
+    await expect(rename).toBeVisible();
+    await expect(rename).toBeFocused();
+    await expect(page.getByTestId("capture-input")).toHaveCount(0);
+  });
+
+  test("bare N still creates a card, not a board", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    const before = await boardCount(page);
+    await page.keyboard.press("n");
+    await expect(page.getByTestId("capture-input")).toBeVisible();
+    await expect(page.locator('[data-testid="board"]:not(.is-archive)')).toHaveCount(before); // no new board
+  });
+
+  test("N and ⇧N are each no-ops while the New menu is open", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    const before = await boardCount(page);
+    await page.getByTestId("new-menu-button").click();
+    await expect(page.getByTestId("context-menu")).toBeVisible();
+
+    // ⇧N must not create a board while the menu owns the keyboard
+    await page.keyboard.press("Shift+N");
+    await expect(page.getByTestId("context-menu")).toBeVisible();
+    await expect(page.locator('[data-testid="board"]:not(.is-archive)')).toHaveCount(before);
+    await expect(page.getByTestId("column-rename-input")).toHaveCount(0);
+
+    // N must not start a capture while the menu owns the keyboard
+    await page.keyboard.press("n");
+    await expect(page.getByTestId("context-menu")).toBeVisible();
+    await expect(page.getByTestId("capture-input")).toHaveCount(0);
+    await expect(page.locator('[data-testid="board"]:not(.is-archive)')).toHaveCount(before);
+  });
+
+  test("the New menu trigger is hidden in Archive and returns on exit", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    await expect(page.getByTestId("new-menu-button")).toBeVisible();
+    await enterArchive(page);
+    await expect(page.getByTestId("new-menu-button")).toBeHidden();
+    await page.locator(".archive-back").click(); // back to canvas
+    await expect(page.getByTestId("new-menu-button")).toBeVisible();
+  });
+
+  test("⇧N is a no-op in Archive — no board is added", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    const before = await boardCount(page);
+    await enterArchive(page);
+    await page.keyboard.press("Shift+N");
+    await expect(page.getByTestId("column-rename-input")).toHaveCount(0);
+    await expect(page.locator(".archive-back")).toBeVisible();
+    // exit and confirm the board count is genuinely unchanged (no silent addBoard)
+    await page.locator(".archive-back").click();
+    await expect(page.locator('[data-testid="board"]:not(.is-archive)')).toHaveCount(before);
+  });
+
+  test("the command palette still offers New board", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    const before = await boardCount(page);
+    await page.getByTestId("command-trigger").click();
+    await page.getByTestId("command-palette-input").fill("New board");
+    // disambiguate the action (sub "Add a board to the canvas") from any board titled "New board"
+    await page.getByTestId("command-palette-item").filter({ hasText: "Add a board to the canvas" }).first().click();
+    await expect(page.locator('[data-testid="board"]:not(.is-archive)')).toHaveCount(before + 1);
+    const rename = page.getByTestId("board-rename-input");
+    await expect(rename).toBeVisible();
+    await expect(rename).toBeFocused();
+  });
+
+  test("the old new-card-button is replaced by the New menu", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    await expect(page.getByTestId("new-card-button")).toHaveCount(0);
+    await expect(page.getByTestId("new-menu-button")).toBeVisible();
+  });
+
+  test("New card targets the active (clicked) board, shown as a hint", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    // Click a board to make it active. Select by its TITLE (a card in Inbox mentions
+    // "mortgage", so a board-level hasText match would be ambiguous).
+    const mortgage = page.getByTestId("board")
+      .filter({ has: page.locator('[data-testid="board-title"]', { hasText: /^Mortgage$/ }) })
+      .first();
+    await mortgage.locator(".board-head").click();
+    await expect(mortgage).toHaveClass(/is-focused/);
+    // The New card menu item hints the active board…
+    await page.getByTestId("new-menu-button").click();
+    await expect(page.getByTestId("menu-item-new-card")).toContainText("Mortgage");
+    // …and the captured card lands in it.
+    const title = `Target ${Date.now()}`;
+    await page.getByTestId("menu-item-new-card").click();
+    await page.getByTestId("capture-input").fill(title);
+    await page.keyboard.press("Enter");
+    await expect(mortgage.locator(".card", { hasText: title })).toBeVisible();
+  });
+
+  test("New card falls back to the Inbox board when nothing is focused", async ({ page }) => {
+    await page.goto("/"); // fresh load → no active board
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    await page.getByTestId("new-menu-button").click();
+    await expect(page.getByTestId("menu-item-new-card")).toContainText("Inbox");
+    const title = `Fallback ${Date.now()}`;
+    await page.getByTestId("menu-item-new-card").click();
+    await page.getByTestId("capture-input").fill(title);
+    await page.keyboard.press("Enter");
+    const inbox = page.getByTestId("board")
+      .filter({ has: page.locator('[data-testid="board-title"]', { hasText: /^Inbox$/ }) })
+      .first();
+    await expect(inbox.locator(".card", { hasText: title })).toBeVisible();
+  });
+
+  test("N with a card focused captures in that card's column", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sync-dot.online")).toBeVisible();
+    // Focus a card and advance it to a later column (so the target differs from a
+    // board's first column), keeping it focused.
+    await page.locator(".card").first().click();
+    await page.keyboard.press("Escape"); // close detail, keep focus
+    await page.keyboard.press("a"); // advance → non-first column
+    await page.keyboard.press("n"); // N captures in the focused card's column
+    const focusedCol = page.locator(".col-cards", { has: page.locator(".card.focus") });
+    await expect(focusedCol.getByTestId("capture-input")).toBeVisible();
+  });
 });
