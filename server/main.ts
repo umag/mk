@@ -6,6 +6,8 @@ import { dueStateOf } from "../src/core/due.ts";
 import { sanitizeLabels } from "../src/core/labels.ts";
 import { archiveSweepOps } from "../src/core/archive.ts";
 import { loadAll, openDb, saveAll } from "./db.ts";
+import { type AuthContext, createAuth } from "./auth.ts";
+import { isBlockedHost } from "../src/auth.ts";
 
 // micro-kaiten persistence API. The same applyOps reducer the browser uses runs
 // here too, so the server can never diverge from the client's intent. On top of
@@ -17,9 +19,24 @@ const PORT = Number(Deno.env.get("MK_PORT") ?? 8787);
 
 const db = openDb(DB_PATH);
 let state: WorldState = loadAll(db);
+const auth = await createAuth(db);
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
+
+/** Parse a JSON body with a hard size cap, THROWING a Response (413/400) on failure
+ *  — caught by the top-level handler. Chunked-safe (slurps + measures the actual body
+ *  rather than trusting the omittable Content-Length header) and keeps the many small
+ *  write handlers terse. */
+async function reqJson(req: Request, maxBytes = 256_000): Promise<unknown> {
+  const text = await req.text();
+  if (text.length > maxBytes) throw json({ error: "payload too large" }, 413);
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw json({ error: "invalid json" }, 400);
+  }
+}
 
 const mkId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -127,6 +144,37 @@ async function youtubeTitle(url: string): Promise<string | null> {
   }
 }
 
+/** Fetch following redirects manually, refusing any hop that targets a private /
+ *  loopback / link-local / metadata host — SSRF guard for the server-side unfurl,
+ *  applied to the initial URL AND every redirect Location (redirect:"follow" would
+ *  let a public host bounce us to 169.254.169.254 / RFC-1918). */
+async function safeFetch(url: string, signal: AbortSignal): Promise<Response | null> {
+  let current = url;
+  for (let hop = 0; hop < 5; hop++) {
+    let host: string;
+    try {
+      host = new URL(current).hostname;
+    } catch {
+      return null;
+    }
+    if (isBlockedHost(host)) return null;
+    const res = await fetch(current, {
+      signal,
+      redirect: "manual",
+      headers: { "user-agent": "Mozilla/5.0 (compatible; micro-kaiten/1.0; +link-unfurl)", "accept": "text/html,application/xhtml+xml" },
+    });
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get("location");
+      await res.body?.cancel();
+      if (!loc) return null;
+      current = new URL(loc, current).href; // resolve relative redirects, re-check host next loop
+      continue;
+    }
+    return res;
+  }
+  return null; // too many redirects
+}
+
 /** Fetch a URL and pull its title (YouTube oEmbed, else og:title / <title>). */
 async function fetchTitle(url: string): Promise<string | null> {
   const yt = await youtubeTitle(url);
@@ -134,13 +182,9 @@ async function fetchTitle(url: string): Promise<string | null> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 6000);
   try {
-    const res = await fetch(url, {
-      signal: ctl.signal,
-      redirect: "follow",
-      headers: { "user-agent": "Mozilla/5.0 (compatible; micro-kaiten/1.0; +link-unfurl)", "accept": "text/html,application/xhtml+xml" },
-    });
-    if (!res.ok || !(res.headers.get("content-type") ?? "").includes("text/html")) {
-      await res.body?.cancel();
+    const res = await safeFetch(url, ctl.signal);
+    if (!res || !res.ok || !(res.headers.get("content-type") ?? "").includes("text/html")) {
+      await res?.body?.cancel();
       return null;
     }
     const html = (await res.text()).slice(0, 524_288); // cap at 512 KB
@@ -165,8 +209,15 @@ function sweepArchive(): void {
   if (moved) console.log(`auto-archived ${moved} card(s)`);
 }
 
-sweepArchive();
-setInterval(sweepArchive, 60 * 60 * 1000); // hourly
+/** Hourly housekeeping: auto-archive long-done cards + drop expired sessions. */
+function hourly(): void {
+  sweepArchive();
+  const pruned = auth.pruneSessions(Date.now());
+  if (pruned) console.log(`pruned ${pruned} expired session(s)`);
+}
+
+hourly();
+setInterval(hourly, 60 * 60 * 1000);
 
 // Serve the built frontend (Docker / production) for any non-API request, with
 // SPA fallback to index.html. In dev this never runs — Vite serves the app and
@@ -195,26 +246,45 @@ async function serveStatic(pathname: string): Promise<Response> {
   }
 }
 
-Deno.serve({ port: PORT }, async (req) => {
-  const { pathname, searchParams } = new URL(req.url);
-  const parts = pathname.split("/").filter(Boolean); // e.g. ["api","cards","<id>","move"]
-  const method = req.method;
-  try {
-    if (parts[0] !== "api") return await serveStatic(pathname);
+async function route(
+  req: Request,
+  pathname: string,
+  searchParams: URLSearchParams,
+  parts: string[],
+  method: string,
+  ctx: AuthContext,
+): Promise<Response> {
+    if (parts[0] !== "api") return await serveStatic(pathname); // static SPA is open (not secret)
+
+    // ---- auth: open allowlist (health + the /api/session login flow), THEN guard ----
+    if (parts[1] === "health" && parts.length === 2) return json({ ok: true, boards: state.boards.length });
+    if (parts[1] === "session" && parts.length === 2) {
+      if (method === "GET") return await auth.status(req);
+      if (method === "POST") return await auth.login(req);
+      if (method === "DELETE") return await auth.logout(req);
+      return json({ error: "method not allowed" }, 405);
+    }
+    const denied = await auth.guard(req, ctx);
+    if (denied) return denied;
 
     // ---- op-replay + whole-workspace (the app's own sync) ----
-    if (parts[1] === "health" && parts.length === 2) return json({ ok: true, boards: state.boards.length });
     if (parts[1] === "workspace" && parts.length === 2) {
       if (method === "GET") return json(state);
       if (method === "PUT") {
-        state = (await req.json()) as WorldState;
+        const incoming = await reqJson(req, 10_000_000);
+        if (!incoming || typeof incoming !== "object" || !Array.isArray((incoming as WorldState).boards)) {
+          return json({ error: "invalid workspace: boards[] required" }, 400);
+        }
+        state = incoming as WorldState;
         saveAll(db, state);
         return json({ ok: true, boards: state.boards.length });
       }
     }
     if (parts[1] === "ops" && parts.length === 2 && method === "POST") {
-      const { ops } = (await req.json()) as { ops: Op[] };
-      applyOps(state, ops);
+      const ops = (await reqJson(req, 5_000_000) as { ops?: unknown })?.ops;
+      if (!Array.isArray(ops)) return json({ error: "ops[] required" }, 400);
+      if (ops.length > 10_000) return json({ error: "too many ops" }, 400);
+      applyOps(state, ops as Op[]);
       saveAll(db, state);
       return json({ ok: true, applied: ops.length });
     }
@@ -251,7 +321,7 @@ Deno.serve({ port: PORT }, async (req) => {
           return json(cards);
         }
         if (method === "POST") {
-          const body = (await req.json()) as { columnId?: string; title?: string; notes?: string; due?: string | null; labels?: string[]; index?: number };
+          const body = (await reqJson(req)) as { columnId?: string; title?: string; notes?: string; due?: string | null; labels?: string[]; index?: number };
           if (!body.columnId || !findColumn(state, body.columnId)) return json({ error: "unknown columnId" }, 400);
           if (!body.title || !body.title.trim()) return json({ error: "title required" }, 400);
           const card: Card = {
@@ -276,7 +346,7 @@ Deno.serve({ port: PORT }, async (req) => {
         if (method === "GET") return cardView(id) ? json(cardView(id)) : json({ error: "not found" }, 404);
         if (method === "PATCH") {
           if (!findCard(state, id)) return json({ error: "not found" }, 404);
-          const patch = (await req.json()) as Partial<Pick<Card, "title" | "notes" | "due" | "labels">>;
+          const patch = (await reqJson(req)) as Partial<Pick<Card, "title" | "notes" | "due" | "labels">>;
           const clean: Partial<Card> = {};
           if (typeof patch.title === "string") clean.title = patch.title;
           if (typeof patch.notes === "string") clean.notes = patch.notes;
@@ -297,7 +367,7 @@ Deno.serve({ port: PORT }, async (req) => {
       if (method === "POST") {
         if (!findCard(state, id)) return json({ error: "not found" }, 404);
         if (sub === "move") {
-          const body = (await req.json()) as { toColumnId?: string; index?: number };
+          const body = (await reqJson(req)) as { toColumnId?: string; index?: number };
           if (!body.toColumnId || !findColumn(state, body.toColumnId)) return json({ error: "unknown toColumnId" }, 400);
           commit([{ t: "moveCard", id, toColumnId: body.toColumnId, index: body.index ?? 0, at: Date.now() }]);
           return json(cardView(id));
@@ -309,26 +379,26 @@ Deno.serve({ port: PORT }, async (req) => {
           return json(cardView(id));
         }
         if (sub === "comments") {
-          const body = (await req.json()) as { text?: string; author?: string };
+          const body = (await reqJson(req)) as { text?: string; author?: string };
           if (!body.text || !body.text.trim()) return json({ error: "text required" }, 400);
           const comment = { id: mkId("cm"), author: body.author ?? "You", at: formatNow(), text: body.text.trim() };
           commit([{ t: "addComment", cardId: id, comment }]);
           return json(comment, 201);
         }
         if (sub === "block") {
-          const body = (await req.json()) as { by?: string };
+          const body = (await reqJson(req)) as { by?: string };
           if (!body.by || !findCard(state, body.by)) return json({ error: "unknown 'by' card" }, 400);
           commit([{ t: "blockCard", id, by: body.by }]);
           return json(cardView(id));
         }
         if (sub === "unblock") {
-          const body = (await req.json()) as { by?: string };
+          const body = (await reqJson(req)) as { by?: string };
           if (!body.by) return json({ error: "'by' required" }, 400);
           commit([{ t: "unblockCard", id, by: body.by }]);
           return json(cardView(id));
         }
         if (sub === "parent") {
-          const body = (await req.json()) as { parent?: string | null };
+          const body = (await reqJson(req)) as { parent?: string | null };
           const parent = body.parent ?? null;
           if (parent !== null && !findCard(state, parent)) return json({ error: "unknown parent" }, 400);
           commit([{ t: "setParent", id, parent }]); // reducer guards self/cycles
@@ -351,7 +421,7 @@ Deno.serve({ port: PORT }, async (req) => {
           return json(boards.map(boardSummary));
         }
         if (method === "POST") {
-          const body = (await req.json()) as { title?: string; x?: number; y?: number; columns?: string[] };
+          const body = (await reqJson(req)) as { title?: string; x?: number; y?: number; columns?: string[] };
           const names = Array.isArray(body.columns) && body.columns.length ? body.columns : ["To do", "Doing", "Done"];
           const board: Board = {
             id: mkId("board"),
@@ -370,7 +440,7 @@ Deno.serve({ port: PORT }, async (req) => {
       if (sub === "columns" && method === "POST") {
         const b = findBoard(state, id);
         if (!b) return json({ error: "not found" }, 404);
-        const body = (await req.json()) as { name?: string; index?: number; wip?: number | null };
+        const body = (await reqJson(req)) as { name?: string; index?: number; wip?: number | null };
         const column: Column = {
           id: mkId("col"),
           name: body.name?.trim() || "New column",
@@ -387,7 +457,7 @@ Deno.serve({ port: PORT }, async (req) => {
         if (method === "GET") return b ? json(b) : json({ error: "not found" }, 404);
         if (method === "PATCH") {
           if (!b) return json({ error: "not found" }, 404);
-          const body = (await req.json()) as { title?: string; x?: number; y?: number; collapsed?: boolean };
+          const body = (await reqJson(req)) as { title?: string; x?: number; y?: number; collapsed?: boolean };
           const ops: Op[] = [];
           if (typeof body.title === "string" && body.title.trim()) ops.push({ t: "renameBoard", id, title: body.title });
           if (typeof body.x === "number" || typeof body.y === "number") {
@@ -416,7 +486,7 @@ Deno.serve({ port: PORT }, async (req) => {
         if (method === "GET") return loc ? json(columnView(id)) : json({ error: "not found" }, 404);
         if (method === "PATCH") {
           if (!loc) return json({ error: "not found" }, 404);
-          const body = (await req.json()) as { name?: string; wip?: number | null };
+          const body = (await reqJson(req)) as { name?: string; wip?: number | null };
           const ops: Op[] = [];
           if (typeof body.name === "string" && body.name.trim()) ops.push({ t: "renameColumn", id, name: body.name });
           if (body.wip === null || typeof body.wip === "number") ops.push({ t: "setWip", id, wip: body.wip });
@@ -434,7 +504,7 @@ Deno.serve({ port: PORT }, async (req) => {
       if (id && sub === "move" && method === "POST") {
         const loc = findColumn(state, id);
         if (!loc) return json({ error: "not found" }, 404);
-        const body = (await req.json()) as { toBoardId?: string; index?: number };
+        const body = (await reqJson(req)) as { toBoardId?: string; index?: number };
         const index = body.index ?? 0;
         if (body.toBoardId && body.toBoardId !== loc.board.id) {
           if (!findBoard(state, body.toBoardId)) return json({ error: "unknown toBoardId" }, 400);
@@ -447,9 +517,26 @@ Deno.serve({ port: PORT }, async (req) => {
     }
 
     return json({ error: "not found" }, 404);
+}
+
+Deno.serve({ port: PORT }, async (req) => {
+  const url = new URL(req.url);
+  const parts = url.pathname.split("/").filter(Boolean); // e.g. ["api","cards","<id>","move"]
+  const ctx: AuthContext = { refreshCookie: null };
+  let res: Response;
+  try {
+    res = await route(req, url.pathname, url.searchParams, parts, req.method, ctx);
   } catch (e) {
-    return json({ error: String(e) }, 500);
+    if (e instanceof Response) {
+      res = e; // a handler threw a typed error (e.g. 413/400 from reqJson)
+    } else {
+      console.error("unhandled route error:", e); // log server-side; never leak to the client
+      ctx.refreshCookie = null; // don't attach a session-refresh cookie to a 500
+      res = json({ error: "internal server error" }, 500);
+    }
   }
+  if (ctx.refreshCookie) res.headers.append("set-cookie", ctx.refreshCookie); // sliding session
+  return res;
 });
 
 console.log(`micro-kaiten API → http://localhost:${PORT}  (db: ${DB_PATH}, ${state.boards.length} boards)`);

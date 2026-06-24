@@ -5,11 +5,17 @@ services:
     # build: .
     container_name: mk
     ports:
-      - "8787:8787"
+      - "8787:8787"          # local use. Behind a reverse proxy, prefer `expose: ["8787"]`
+                             # on a shared network so the proxy is the only ingress.
     volumes:
       - mk-data:/data        # SQLite DB persists here (/data/mk.db)
     environment:
       - MK_PORT=8787
+      # ── Auth — REQUIRED before exposing this publicly ──────────────────────
+      # Without MK_AUTH_SECRET the API is OPEN (single-user/localhost only).
+      # - MK_AUTH_SECRET=change-me-to-a-long-random-passphrase   # >= 16 chars; enables the login gate
+      # - MK_API_TOKEN=change-me-to-a-random-token               # optional: bearer token for automation
+      # - MK_PROXY_DEPTH=1                                        # trusted reverse-proxy hops (client IP for rate-limiting)
     restart: unless-stopped
 
 volumes:
