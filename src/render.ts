@@ -11,6 +11,7 @@ import { labelChip, toggleLabelFilter, updateFilterBar } from "./filter";
 import { boardRectsNow, invalidateScene } from "./canvas";
 import { playSound } from "./sound";
 import { anchorIndex, BOARD_GAP, compactToAnchor, originOf, relaxOverlaps } from "./board-layout";
+import { boardSnapOn } from "./settings";
 import type { Board, Card, Column, DueState, ID } from "./types";
 
 // parent → children, rebuilt once per world render so the facade can show
@@ -47,6 +48,9 @@ const dueClass = (s: DueState): string =>
 
 export function renderWorld(): void {
   const { world, store } = ctx;
+  // Drop any in-flight board-drag landing ghost first: a rerender mid-drag would
+  // otherwise orphan it (the board-removal below only clears .board nodes).
+  world.querySelectorAll(".board-drop-ghost").forEach((g) => g.remove());
   parentChildren = childIndex(store.world);
   const prev = captureCardRects(world);
   const prevBoards = captureBoardRects(world);
@@ -96,6 +100,7 @@ export function renderWorld(): void {
 // move), nudge any overlapping boards apart so boards never overlap.
 let relaxScheduled = false;
 function scheduleRelax() {
+  if (!boardSnapOn()) return; // free mode: leave overlaps alone
   if (relaxScheduled) return;
   relaxScheduled = true;
   requestAnimationFrame(() => {
@@ -118,6 +123,7 @@ function scheduleRelax() {
 // so the folded board is already measured at its small size.
 let magnetScheduled = false;
 export function requestBoardMagnet() {
+  if (!boardSnapOn()) return; // free mode: don't pull boards toward the anchor
   if (magnetScheduled) return;
   magnetScheduled = true;
   requestAnimationFrame(() => {

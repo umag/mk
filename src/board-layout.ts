@@ -168,3 +168,23 @@ export function compactToAnchor(
   }
   return changed;
 }
+
+/**
+ * Where a dragged board will magnet to, plus the full set of neighbour moves.
+ * Both the live drag preview (the landing ghost) and the on-drop commit call
+ * this, so the previewed spot can never diverge from where the board actually
+ * lands, and the neighbour packing is never lost. Pure: the caller supplies
+ * rects with DOM-measured sizes; `changed` is the same map `compactToAnchor`
+ * returns (moved boards only); `landing` falls back to the dragged board's own
+ * position when compaction leaves it put.
+ */
+export function boardLandingSpot(
+  boards: Array<Rect & { id: string }>,
+  draggedId: string,
+  gap: number,
+): { changed: Map<string, { x: number; y: number }>; landing: { x: number; y: number } } {
+  const changed = compactToAnchor(boards, gap, originOf(boards));
+  const dragged = boards.find((b) => b.id === draggedId);
+  const landing = changed.get(draggedId) ?? { x: dragged?.x ?? 0, y: dragged?.y ?? 0 };
+  return { changed, landing };
+}

@@ -65,6 +65,49 @@ test.describe("Board canvas flows", () => {
     expect(overlap).toBe(false);
   });
 
+  test("board drag shows a landing ghost and auto-pans at the viewport edge", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".board")).not.toHaveCount(0);
+    await page.waitForTimeout(300); // settle initial render
+
+    const panX = () =>
+      page.evaluate(() => {
+        const w = document.querySelector(".canvas-world")!;
+        return new DOMMatrixReadOnly(getComputedStyle(w).transform).m41;
+      });
+
+    const board = page.locator(".board:not(.is-anchor):not(.is-archive)").first();
+    const head = (await board.locator(".board-head").first().boundingBox())!;
+    const vp = (await page.locator(".canvas-viewport").boundingBox())!;
+
+    // Pick up the board and move it into the canvas — the landing ghost appears.
+    await page.mouse.move(head.x + 30, head.y + head.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(head.x + 120, head.y + 120, { steps: 8 });
+    await expect(page.locator(".board-drop-ghost")).toHaveCount(1);
+
+    // Hold near the right viewport edge — the canvas auto-pans while held.
+    const before = await panX();
+    await page.mouse.move(vp.x + vp.width - 18, vp.y + vp.height / 2, { steps: 4 });
+    await page.waitForTimeout(600);
+    expect(Math.abs((await panX()) - before)).toBeGreaterThan(5);
+
+    // Release: the ghost is cleaned up and no two boards overlap (magnet pack).
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    await expect(page.locator(".board-drop-ghost")).toHaveCount(0);
+    const overlap = await page.locator(".board:not(.is-archive)").evaluateAll((boards) => {
+      const r = boards.map((b) => b.getBoundingClientRect());
+      for (let i = 0; i < r.length; i++)
+        for (let j = i + 1; j < r.length; j++) {
+          const a = r[i], c = r[j];
+          if (a.left < c.right - 1 && a.right > c.left + 1 && a.top < c.bottom - 1 && a.bottom > c.top + 1) return true;
+        }
+      return false;
+    });
+    expect(overlap).toBe(false);
+  });
+
   test("the canvas is bounded — extreme panning never empties the view", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".board")).not.toHaveCount(0);
