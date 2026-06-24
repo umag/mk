@@ -7,10 +7,44 @@ what a change means.
 
 - **Base URL:** `http://localhost:8787` (override the port with `MK_PORT`).
   In dev, Vite proxies `/api/*` to it, so `http://localhost:5173/api/...` works too.
-- **No auth.** Single-user, localhost only — do not expose it as-is.
+- **Auth (optional).** Off by default (single-user / localhost). Set `MK_AUTH_SECRET`
+  to require a login — then every `/api/*` route except `/api/health` and `/api/session`
+  needs the browser session cookie **or** an `Authorization: Bearer <MK_API_TOKEN>`
+  header. See [Authentication](#authentication) below.
 - **Content type:** JSON in, JSON out. Send `Content-Type: application/json` on writes.
-- **Errors:** `400` bad input · `404` unknown id · `405` wrong method · `409`
-  conflict (e.g. advancing the last column) · `500` unexpected. Body is `{ "error": "..." }`.
+- **Errors:** `400` bad input · `401` unauthenticated · `404` unknown id · `405` wrong
+  method · `409` conflict · `413` payload too large · `415` wrong content-type · `429`
+  too many login attempts · `500` unexpected. Body is `{ "error": "..." }`.
+
+## Authentication
+
+Unset `MK_AUTH_SECRET` ⇒ **auth is off**: `GET /api/session` returns `{ "enabled": false }`
+and every route is open (keep it on localhost only). A **production** server (when
+`MK_STATIC` is set) refuses to start without `MK_AUTH_SECRET` so it is never silently open.
+
+| Var | Meaning |
+| --- | --- |
+| `MK_AUTH_SECRET` | The login passphrase (≥ 16 chars). Enables auth. Stored only as a PBKDF2 hash in memory; never logged. |
+| `MK_API_TOKEN` | Optional shared bearer token for automation, independent of the login. |
+| `MK_PROXY_DEPTH` | Trusted reverse-proxy hops for per-IP login rate-limiting (default `1`). |
+| `MK_INSECURE_COOKIES` | Set `1` only for plain-http local testing (drops the `Secure` cookie flag). |
+
+**Browser (cookie session)**
+
+| Method | Path | Body | Result |
+| --- | --- | --- | --- |
+| GET | `/api/session` | — | `{ "enabled": false }` or `{ "enabled": true, "authed": bool }` |
+| POST | `/api/session` | `{ "passphrase": "..." }` | `{ "ok": true }` + sets `mk_session` (HttpOnly, Secure, SameSite=Strict, ~365-day sliding cookie). `401` wrong passphrase · `429 { error, retryAfter }` (seconds; also a `Retry-After` header) when locked out after 5 failures |
+| DELETE | `/api/session` | — | `{ "ok": true }`, revokes the session + clears the cookie |
+
+**Automation (bearer token)** — send `Authorization: Bearer <MK_API_TOKEN>` on any request:
+
+```bash
+curl -H "Authorization: Bearer $MK_API_TOKEN" http://localhost:8787/api/cards
+```
+
+The login session is sliding (each use extends it), so an active browser never has to
+re-login; a `401` mid-session means the session expired — POST `/api/session` again.
 
 ## Data model
 

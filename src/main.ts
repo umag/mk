@@ -20,7 +20,9 @@ import { closePalette, createBoard, exitArchive, newCard, openPalette, targetBoa
 import { isMenuOpen, openMenu } from "./menu";
 import { openFilterPopover } from "./filter";
 import { playSound, toggleMute } from "./sound";
-import { enqueueOp, loadWorkspace, onSynced, onSyncStatus, pushSnapshot, setSyncEnabled, unfurl } from "./sync/client";
+import { enqueueOp, loadWorkspace, onAuthRequired, onSynced, onSyncStatus, pushSnapshot, setSyncEnabled, unfurl } from "./sync/client";
+import { fetchAuthStatus, logout } from "./sync/auth";
+import { showLogin } from "./login";
 import type { ID } from "./types";
 
 function buildShell() {
@@ -113,7 +115,7 @@ function buildShell() {
       el("button", { data: { testid: "zoom-in" }, attrs: { "aria-label": "Zoom in" }, text: "+", on: { click: () => nudgeZoom(1) } }),
     ),
     el("button", { class: "btn icon-btn mute-btn", data: { testid: "mute-button" }, attrs: { "aria-label": "Toggle sounds", title: "Sounds (M)" }, on: { click: toggleMuteUI } }, svg(icons.sound)),
-    el("div", { class: "avatar", attrs: { "aria-hidden": "true" } }),
+    el("div", { class: "avatar", data: { testid: "account-button" }, attrs: { "aria-hidden": "true" } }),
   );
 
   const filterBar = el("div", {
@@ -236,8 +238,15 @@ async function boot() {
   store.setOpSink(enqueueOp);
   onSyncStatus(updateSyncDot);
   onSynced(pulseSyncDot);
+  onAuthRequired(handleAuthRequired);
 
   initToast();
+
+  // Auth gate: probe /api/session first. Network error → null → proceed (offline
+  // mode). {enabled:false} → no gate (dev / no secret). enabled+unauthed → login.
+  const auth = await fetchAuthStatus();
+  if (auth?.enabled && !auth.authed) await showLogin();
+  if (auth?.enabled) wireAccountMenu(); // avatar → "Log out" (only when auth is on)
 
   // Hydrate from the server BEFORE first paint — no seed→server flash, no capture
   // race. loadWorkspace() resolves fast on localhost and fails fast when down.
@@ -302,7 +311,50 @@ function updateSyncDot(online: boolean) {
   const dot = document.querySelector(".sync-dot");
   if (!dot) return;
   dot.classList.toggle("online", online);
+  dot.classList.remove("reauth"); // online/offline is a different state than expired-session
   dot.setAttribute("title", online ? "Synced to local server" : "Offline — in-memory only");
+}
+
+// Turn the (otherwise decorative) top-bar avatar into an Account button whose menu
+// offers Log out. Wired only when auth is enabled, so dev/no-auth is unchanged.
+function wireAccountMenu() {
+  const avatar = document.querySelector<HTMLElement>(".avatar");
+  if (!avatar) return;
+  avatar.classList.add("interactive");
+  avatar.removeAttribute("aria-hidden");
+  avatar.setAttribute("role", "button");
+  avatar.setAttribute("tabindex", "0");
+  avatar.setAttribute("aria-haspopup", "menu");
+  avatar.setAttribute("aria-label", "Account");
+  avatar.setAttribute("title", "Account");
+  const open = () => openMenu(avatar, [{ label: "Log out", icon: "chevronLeft", run: () => void doLogout() }]);
+  avatar.addEventListener("click", open);
+  avatar.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+  });
+}
+
+async function doLogout() {
+  await logout(); // DELETE /api/session — revokes the session + clears the cookie
+  setSyncEnabled(false); // stop syncing under the now-dead session
+  await showLogin(); // gate until the user logs back in
+  setSyncEnabled(true); // resume sync on the new session
+}
+
+// Re-auth in flight guard, so a burst of queued ops yields one login prompt.
+let reauthing = false;
+async function handleAuthRequired() {
+  const dot = document.querySelector(".sync-dot");
+  if (dot) {
+    dot.classList.remove("online");
+    dot.classList.add("reauth");
+    dot.setAttribute("title", "Session expired — log in to keep syncing");
+  }
+  if (reauthing) return;
+  reauthing = true;
+  await showLogin();
+  reauthing = false;
+  setSyncEnabled(true); // flush the ops held during the expired-session window
 }
 
 /** Quiet confirmation that a batch persisted. */

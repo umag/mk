@@ -14,9 +14,12 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let flushing = false;
 let onStatus: ((online: boolean) => void) | null = null;
 let onFlushed: (() => void) | null = null;
+let onAuth: (() => void) | null = null;
 
 export function onSyncStatus(fn: (online: boolean) => void) { onStatus = fn; }
 export function onSynced(fn: () => void) { onFlushed = fn; }
+/** Fired when the server returns 401 (session expired) — distinct from offline. */
+export function onAuthRequired(fn: () => void) { onAuth = fn; }
 
 export function setSyncEnabled(v: boolean) {
   enabled = v;
@@ -47,6 +50,14 @@ async function flush() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ops: batch }),
     });
+    if (res.status === 401) {
+      // Session expired — keep the ops (they replay after re-login) and ask for
+      // re-auth. This is NOT offline: don't masquerade as the offline state.
+      queue = batch.concat(queue);
+      enabled = false;
+      onAuth?.();
+      return;
+    }
     if (!res.ok) throw new Error(`sync ${res.status}`);
     onFlushed?.();
   } catch {
@@ -59,10 +70,13 @@ async function flush() {
   }
 }
 
-/** GET the persisted workspace. Returns null when the server is unreachable. */
+/** GET the persisted workspace. Returns null when the server is unreachable (or the
+ *  session expired — a 401 also fires onAuthRequired so boot prompts re-login rather
+ *  than silently dropping into offline mode). */
 export async function loadWorkspace(): Promise<WorldState | null> {
   try {
     const res = await fetch(`${API}/workspace`);
+    if (res.status === 401) onAuth?.();
     if (!res.ok) return null;
     const data = (await res.json()) as WorldState;
     return data && Array.isArray(data.boards) ? data : { boards: [] };

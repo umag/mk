@@ -21,8 +21,14 @@ COPY --from=web /app/dist ./dist
 ENV MK_STATIC=/app/dist \
     MK_DB=/data/mk.db \
     MK_PORT=8787
+
+# Run as the non-root `deno` user (uid 1000). A FRESH named volume inherits this
+# ownership so the DB stays writable; an existing root-owned volume needs a one-time
+# `chown -R 1000:1000` (see README → Exposing it publicly).
+RUN mkdir -p /data && chown -R deno:deno /data
 EXPOSE 8787
 VOLUME ["/data"]
+USER deno
 
 # node:sqlite needs FFI; the static dir + DB need read/write.
 CMD ["deno", "run", "--allow-net", "--allow-read", "--allow-write", "--allow-env", "--allow-ffi", "server/main.ts"]
