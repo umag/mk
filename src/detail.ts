@@ -5,7 +5,7 @@ import { sinceLabel } from "./store";
 import { dueLabel, dueStateOf } from "./core/due";
 import { closeCalendar, isCalendarOpen, openCalendar } from "./calendar";
 import { closeLabelSuggest, isLabelSuggestOpen, labelChip, labelInput } from "./filter";
-import { type Item, isMenuOpen, openMenu } from "./menu";
+import { closeMenu, type Item, isMenuOpen, openMenu } from "./menu";
 import { closeCardPicker, isCardPickerOpen, openCardPicker, relatedCardRow } from "./relations";
 import { blockersOf, childProgress, childrenOf } from "./core/relations";
 import { playSound } from "./sound";
@@ -38,6 +38,7 @@ export function closeDetail() {
   closeCalendar();
   closeLabelSuggest();
   closeCardPicker();
+  closeMenu(); // tear down the "+" add menu too, so it can't outlive the sheet
   window.removeEventListener("keydown", onKey, true);
   backdrop?.remove();
   sheet.remove();
@@ -178,7 +179,7 @@ function rebuild() {
   const addBtn = el("button", {
     class: "field add-meta",
     data: { testid: "card-detail-add" },
-    attrs: { "aria-label": "Add due date or label", title: "Add to card" },
+    attrs: { "aria-label": "Add due date or label", title: "Add to card", "aria-haspopup": "menu", "aria-expanded": "false" },
     on: {
       click: () => {
         const items: Item[] = [];

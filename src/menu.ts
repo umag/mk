@@ -5,11 +5,16 @@ import { playSound } from "./sound";
 import type { Board, Card, Column } from "./types";
 
 let open: HTMLElement | null = null;
+// The trigger of an openMenu() dropdown, tracked so closeMenu can reset its
+// aria-expanded. Context menus (fromAnchor) leave this null and are unaffected.
+let anchorEl: HTMLElement | null = null;
 
 export interface Item {
   label: string;
   icon: keyof typeof icons;
   kbd?: string;
+  /** A muted trailing note, e.g. the target board a "New card" will land in. */
+  hint?: string;
   danger?: boolean;
   run: () => void;
 }
@@ -32,6 +37,7 @@ function showAt(x: number, y: number, items: Item[]) {
       },
         svg(icons[it.icon]),
         el("span", { text: it.label }),
+        it.hint ? el("span", { class: "menu-hint", text: it.hint }) : null,
         it.kbd ? el("kbd", { class: "menu-kbd", text: it.kbd }) : null,
       ),
     );
@@ -62,6 +68,12 @@ function onEsc(e: KeyboardEvent) {
 }
 
 export function closeMenu() {
+  // Reset the trigger's expanded state first (capture-then-clear so the re-entrant
+  // closeMenu() inside showAt() can't see a stale anchor). No focus-return: that
+  // would steal focus from a field the menu action just opened (e.g. a rename input).
+  const a = anchorEl;
+  anchorEl = null;
+  a?.setAttribute("aria-expanded", "false");
   if (!open) return;
   open.remove();
   open = null;
@@ -76,7 +88,9 @@ export function isMenuOpen() {
 /** Open a themed dropdown of items below an anchor (e.g. the detail "+" button). */
 export function openMenu(anchor: HTMLElement, items: Item[]) {
   const r = anchor.getBoundingClientRect();
-  showAt(r.left, r.bottom + 6, items);
+  showAt(r.left, r.bottom + 6, items); // showAt closes any prior menu (clears anchorEl) first
+  anchorEl = anchor;
+  anchor.setAttribute("aria-expanded", "true");
 }
 
 export function boardMenu(board: Board, anchor: HTMLElement) {
@@ -116,7 +130,7 @@ export function cardMenu(card: Card, x: number, y: number) {
   ]);
 }
 
-function renameBoardInline(board: Board) {
+export function renameBoardInline(board: Board) {
   const h2 = ctx.world.querySelector<HTMLElement>(`[data-board-title="${board.id}"]`);
   if (!h2) return;
   const input = el("input", { class: "rename-input", data: { testid: "board-rename-input" }, attrs: { value: board.title, "aria-label": "Rename board" } });

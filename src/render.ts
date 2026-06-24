@@ -2,7 +2,7 @@ import { clear, el, linkify, svg } from "./dom";
 import { icons } from "./icons";
 import { captureBoardRects, captureCardRects, flipBoards, flipCards } from "./flip";
 import { ctx } from "./context";
-import { boardMenu, cardMenu, columnMenu } from "./menu";
+import { boardMenu, cardMenu, columnMenu, renameBoardInline } from "./menu";
 import { dueLabel, dueStateOf } from "./core/due";
 import { isArchiveBoard, isDoneColumn } from "./core/done";
 import { cardMatchesFilter } from "./core/labels";
@@ -40,6 +40,22 @@ export function requestColumnRename(columnId: string) {
   ctx.rerender();
 }
 
+let pendingRenameBoard: string | null = null;
+/** Ask the next render to drop the given board's title straight into edit mode. */
+export function requestBoardRename(boardId: string) {
+  pendingRenameBoard = boardId;
+  ctx.rerender();
+}
+
+/** Mark a board as the "active" one (where new cards land) and reflect it on the canvas. */
+export function setBoardFocus(id: string | null) {
+  ctx.store.view.focusedBoardId = id;
+  for (const b of ctx.world.querySelectorAll<HTMLElement>(".board")) {
+    const on = !!id && b.dataset.boardId === id && !b.classList.contains("is-archive");
+    b.classList.toggle("is-focused", on);
+  }
+}
+
 // Color-as-state: red (--hot) is reserved for overdue alone; due-today and
 // due-soon are warm (--due), far future is quiet. Mirrors Kaiten's
 // grey→yellow→red mapping and DESIGN.md's "red appears only on overdue" rule.
@@ -69,6 +85,9 @@ export function renderWorld(): void {
   if (sub) sub.textContent = archiveOpen ? "~/archive" : "~/canvas/personal";
   const back = document.querySelector<HTMLElement>(".archive-back");
   if (back) back.style.display = archiveOpen ? "inline-flex" : "none";
+  // Creation is meaningless in the read-only Archive — hide the New menu trigger there.
+  const newBtn = document.querySelector<HTMLElement>(".new-menu-btn");
+  if (newBtn) newBtn.style.display = archiveOpen ? "none" : "";
 
   const empty = world.parentElement?.querySelector(".empty-canvas") as HTMLElement | null;
   if (empty) empty.style.display = !archiveOpen && boards.length === 0 ? "grid" : "none";
@@ -91,6 +110,13 @@ export function renderWorld(): void {
     const id = pendingRenameColumn;
     pendingRenameColumn = null;
     startRename(id);
+  }
+
+  if (pendingRenameBoard) {
+    const id = pendingRenameBoard;
+    pendingRenameBoard = null;
+    const b = ctx.store.findBoard(id);
+    if (b) renameBoardInline(b);
   }
 
   scheduleRelax();
@@ -196,7 +222,16 @@ function buildBoard(board: Board): HTMLElement {
 
   const style: Record<string, string> = { "--bx": `${board.x}px`, "--by": `${board.y}px` };
   if (board.collapsed && board.foldW) style.width = `${board.foldW}px`; // keep its length when folded
-  const section = el("section", { class: `board${isAnchor ? " is-anchor" : ""}${archive ? " is-archive" : ""}${board.collapsed ? " is-collapsed" : ""}`, data: { boardId: board.id, testid: "board" }, style }, head);
+  const focused = !archive && ctx.store.view.focusedBoardId === board.id;
+  const section = el("section", {
+    class: `board${isAnchor ? " is-anchor" : ""}${archive ? " is-archive" : ""}${board.collapsed ? " is-collapsed" : ""}${focused ? " is-focused" : ""}`,
+    data: { boardId: board.id, testid: "board" },
+    style,
+    // Clicking anywhere in a board makes it the active target for new cards. This
+    // fires at drag-START (pointerdown), so dragging a card A→B leaves A active; the
+    // active board is sticky (not cleared when card focus clears).
+    on: archive ? {} : { pointerdown: () => ctx.setBoardFocus(board.id) },
+  }, head);
 
   if (!board.collapsed) {
     const cols = el("div", { class: "board-cols" });

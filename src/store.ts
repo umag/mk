@@ -16,7 +16,7 @@ export class Store {
   world: WorldState;
   view: ViewState = {
     panX: 0, panY: 0, zoom: 1,
-    focusedCardId: null, detailCardId: null, paletteOpen: false, archiveOpen: false,
+    focusedCardId: null, focusedBoardId: null, detailCardId: null, paletteOpen: false, archiveOpen: false,
     labelFilter: [],
   };
 
@@ -41,6 +41,7 @@ export class Store {
   load(world: WorldState) {
     this.world = world;
     if (this.view.focusedCardId && !findCard(world, this.view.focusedCardId)) this.view.focusedCardId = null;
+    if (this.view.focusedBoardId && !findBoard(world, this.view.focusedBoardId)) this.view.focusedBoardId = null;
     this.emitData();
   }
 
@@ -205,6 +206,7 @@ export class Store {
 
   deleteBoard(id: ID) {
     if (!this.findBoard(id)) return;
+    if (this.view.focusedBoardId === id) this.view.focusedBoardId = null;
     this.commit({ t: "deleteBoard", id });
   }
 

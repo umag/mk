@@ -63,6 +63,9 @@ export interface ViewState {
   panY: number;
   zoom: number;
   focusedCardId: ID | null;
+  /** The "active" board new cards land in (set by clicking a board, focusing a
+   *  card in it, or creating it). Transient; never persisted. */
+  focusedBoardId: ID | null;
   detailCardId: ID | null;
   paletteOpen: boolean;
   /** Viewing the hidden Archive board instead of the normal canvas. */

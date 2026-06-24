@@ -8,7 +8,7 @@ import { icons } from "./icons";
 import { ctx } from "./context";
 import { Store } from "./store";
 import { seedWorld } from "./seed";
-import { renderWorld, updateChrome, updateFocusRing, skipNextFlip, requestColumnRename } from "./render";
+import { renderWorld, updateChrome, updateFocusRing, skipNextFlip, requestColumnRename, requestBoardRename, setBoardFocus } from "./render";
 import { glowPulse, reduceMotion } from "./flip";
 import { initCanvas, applyTransform, screenToWorld, centerOn, nudgeZoom, setZoom } from "./canvas";
 import { initDnd } from "./dnd";
@@ -16,13 +16,17 @@ import { initCapture, startCapture } from "./capture";
 import { initKeyboard } from "./keyboard";
 import { initToast, toast } from "./toast";
 import { openDetail, closeDetail } from "./detail";
-import { closePalette, exitArchive, openPalette } from "./palette";
+import { closePalette, createBoard, exitArchive, newCard, openPalette, targetBoardForNewCard } from "./palette";
+import { isMenuOpen, openMenu } from "./menu";
 import { openFilterPopover } from "./filter";
 import { playSound, toggleMute } from "./sound";
 import { enqueueOp, loadWorkspace, onSynced, onSyncStatus, pushSnapshot, setSyncEnabled, unfurl } from "./sync/client";
 import type { ID } from "./types";
 
 function buildShell() {
+  // Was the New ▾ menu open when its trigger was pressed? Lets a second click on the
+  // trigger toggle the menu closed (the menu's own pointerdown-to-close fires first).
+  let newMenuWasOpen = false;
   const world = el("div", { class: "canvas-world" });
   const viewport = el(
     "div",
@@ -35,7 +39,7 @@ function buildShell() {
         "div",
         { class: "inner" },
         el("h2", { text: "A quiet canvas." }),
-        el("p", { html: "Press <kbd>N</kbd> to capture your first card, or <kbd>⌘K</kbd> to add a board." }),
+        el("p", { html: "Press <kbd>⇧N</kbd> to add a board, then <kbd>N</kbd> to capture your first card." }),
       ),
     ),
     el("div", { class: "cscroll v" }, el("i", {})),
@@ -63,10 +67,24 @@ function buildShell() {
     el("div", { class: "topbar-spacer" }),
     el(
       "button",
-      { class: "btn btn-primary", data: { testid: "new-card-button" }, on: { click: () => newCardQuick() } },
-      svg(icons.plus),
-      "New card",
-      el("kbd", { text: "N" }),
+      {
+        class: "btn new-menu-btn",
+        data: { testid: "new-menu-button" },
+        attrs: { "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "New", title: "New — card (N) · board (⇧N)" },
+        on: {
+          pointerdown: () => { newMenuWasOpen = isMenuOpen(); },
+          click: (e: MouseEvent) => {
+            if (newMenuWasOpen) { newMenuWasOpen = false; return; } // 2nd click toggles it closed
+            const target = targetBoardForNewCard();
+            openMenu(e.currentTarget as HTMLElement, [
+              { label: "New card", icon: "plus", kbd: "N", hint: target ? `→ ${target.title}` : undefined, run: () => newCard() },
+              { label: "New board", icon: "board", kbd: "⇧N", run: () => createBoard() },
+            ]);
+          },
+        },
+      },
+      "New",
+      svg(icons.chevronDown, "caret"),
     ),
     el(
       "button",
@@ -116,7 +134,8 @@ function buildHud() {
   return el(
     "div",
     { class: "hud", attrs: { "aria-hidden": "true" } },
-    key("N", "new", true),
+    key("N", "card", true),
+    key("⇧N", "board", true),
     el("span", { class: "sep" }),
     key("↵", "edit", true),
     key("A", "advance", true),
@@ -125,16 +144,6 @@ function buildHud() {
     el("span", {}, el("kbd", { text: "Space" }), "pan"),
     key("/", "search"),
   );
-}
-
-function newCardQuick() {
-  const id = ctx.store.view.focusedCardId;
-  if (id) {
-    const loc = ctx.store.findCard(id);
-    if (loc) return startCapture(loc.column.id);
-  }
-  const first = ctx.store.world.boards[0]?.columns[0];
-  if (first) startCapture(first.id);
 }
 
 function toggleMuteUI() {
@@ -159,6 +168,11 @@ const escapeHtml = (s: string): string =>
 
 function setFocus(id: ID | null, opts?: { reveal?: boolean }) {
   ctx.store.view.focusedCardId = id;
+  // Focusing a card makes its board the active one (so New card targets it).
+  if (id) {
+    const loc = ctx.store.findCard(id);
+    if (loc) setBoardFocus(loc.board.id);
+  }
   updateFocusRing();
   if (id && opts?.reveal) {
     const elc = ctx.world.querySelector<HTMLElement>(`[data-card-id="${id}"]`);
@@ -206,9 +220,11 @@ async function boot() {
   ctx.screenToWorld = screenToWorld;
   ctx.centerOn = centerOn;
   ctx.setFocus = setFocus;
+  ctx.setBoardFocus = setBoardFocus;
   ctx.advance = advance;
   ctx.deleteCard = deleteCard;
   ctx.requestColumnRename = requestColumnRename;
+  ctx.requestBoardRename = requestBoardRename;
   ctx.startCapture = startCapture;
   ctx.openDetail = openDetail;
   ctx.closeDetail = closeDetail;
